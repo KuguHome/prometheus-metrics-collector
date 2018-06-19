@@ -105,89 +105,89 @@ func main() {
 	}
 	log.Info("Berichte geholt")
 
-	// neueste Tagesberichte per E-Post über SMTP versenden
-	// Bibliotheken: https://stackoverflow.com/questions/11075749/how-to-send-an-email-with-attachments-in-go
-	// -> https://github.com/jordan-wright/email
-	// -> https://github.com/go-gomail/gomail
-	// Nur mit net/smtp: https://hackernoon.com/golang-sendmail-sending-mail-through-net-smtp-package-5cadbe2670e0
-	// von Befehlszeile aus: http://backreference.org/2013/05/22/send-email-with-attachments-from-script-or-command-line/
-
-	// Verbindungseinstellungen
-	const smtpServer = "exchangeserver.kugu-home.com"
-	const smtpPort = 587
-	const smtpUser = "[FIXME]"
-	const smtpPass = "[FIXME]"
-	const smtpSender = "KUGU Home <[FIXME]>"
-
-	// Vorbereiten, Verbindung herstellen
-	//TODO TLSConfig genauer anschauen - Sicherheitsprüfung
-	versuch := 1
-erneutVerbinden:
-	log.Info(fmt.Sprintf("Verbinde mit SMTP-Server (Versuch %d)...", versuch))
-	mitteleuropa, _ := time.LoadLocation("Europe/Vienna")
-	datumStr := time.Now().AddDate(0, 0, -1).In(mitteleuropa).Format("2006-01-02") // gestrigen Bericht versenden
-	d := gomail.NewDialer(smtpServer, smtpPort, smtpUser, smtpPass)
-	s, err := d.Dial()
-	if err != nil {
-		if versuch < 4 {
-			log.Err(fmt.Sprintf("FEHLER beim Verbinden zum SMTP-Server: %s - Versuche erneut in 5 Minuten.\n", err))
-			time.Sleep(5 * time.Minute)
-			versuch++
-			goto erneutVerbinden
-		} else {
-			log.Err(fmt.Sprintf("FEHLER beim Verbinden zum SMTP-Server: %s - Abbruch.\n", err))
-			os.Exit(2)
-		}
-	}
-	msg := gomail.NewMessage()
-	// Bericht jeder SZ versenden
-	log.Info("Versende Berichte...")
-	for szName, sz := range konfig.Steuerzentralen {
-		// relevante Werte extrahieren
-		status := szStatus[szName]
-		log.Info(fmt.Sprintf("[%s] Erstelle Nachricht...\n", szName))
-		// Nachricht erstellen
-		msg.SetHeader("From", smtpSender)
-		msg.SetHeader("To", smtpReceivers...)
-		//msg.SetAddressHeader("Cc", "dan@example.com", "Dan")
-		//msg.SetAddressHeader("To", address, name)
-		msg.SetHeader("Subject", fmt.Sprintf("SZ-Tagesbericht %s", szName))
-
-		// gibt es einen Bericht für diese SZ?
-		// Existiert eine Datei: https://stackoverflow.com/questions/12518876/how-to-check-if-a-file-exists-in-go
-		dateiName := fmt.Sprintf("/home/ubuntu/tagesbericht/%s/tagesbericht_%s.pdf", szName, datumStr)
-		if _, err := os.Stat(dateiName); os.IsNotExist(err) {
-			// kein Bericht vorhanden
-			log.Err(fmt.Sprintf("[%s] FEHLER Kein aktueller Tagesbericht für %s gefunden.\n", szName, datumStr))
-			msg.SetBody("text/plain", fmt.Sprintf("Kein aktueller Tagesbericht für die Steuerzentrale %s (%s) vorhanden.\nStatus war:\n%s", szName, sz.Bezeichnung, status))
-		} else {
-			// aktueller Bericht vorhanden
-			log.Info(fmt.Sprintf("[%s] OK Aktueller Tagesbericht gefunden.\n", szName))
-			msg.Attach(dateiName)
-			msg.SetBody("text/plain", fmt.Sprintf("Anbei finden Sie den aktuellen Tagesbericht der Steuerzentrale %s (%s).", szName, sz.Bezeichnung))
-		}
-
-		// Send the email to Bob, Cora and Dan.
-		/*
-			d := gomail.NewDialer(smtpServer, smtpPort, smtpUser, smtpPass)
-			if err := d.DialAndSend(m); err != nil {
-				panic(err)
-			}
-		*/
-		if err := gomail.Send(s, msg); err != nil {
-			log.Err(fmt.Sprintf("[%s] FEHLER beim Senden der Nachricht: %s\n", szName, err))
-		} else {
-			log.Info(fmt.Sprintf("[%s] OK Nachricht erfolgreich abgeschickt\n", szName))
-		}
-
-		// Nachricht leeren -> wiederverwendbar
-		msg.Reset()
-	}
-
-	// Erfolg
-	log.Info("OK Nachrichten erfolgreich gesendet")
-	log.Info("Sitzung beendet.")
-}
+// 	// neueste Tagesberichte per E-Post über SMTP versenden
+// 	// Bibliotheken: https://stackoverflow.com/questions/11075749/how-to-send-an-email-with-attachments-in-go
+// 	// -> https://github.com/jordan-wright/email
+// 	// -> https://github.com/go-gomail/gomail
+// 	// Nur mit net/smtp: https://hackernoon.com/golang-sendmail-sending-mail-through-net-smtp-package-5cadbe2670e0
+// 	// von Befehlszeile aus: http://backreference.org/2013/05/22/send-email-with-attachments-from-script-or-command-line/
+//
+// 	// Verbindungseinstellungen
+// 	const smtpServer = "exchangeserver.kugu-home.com"
+// 	const smtpPort = 587
+// 	const smtpUser = "[FIXME]"
+// 	const smtpPass = "[FIXME]"
+// 	const smtpSender = "KUGU Home <[FIXME]>"
+//
+// 	// Vorbereiten, Verbindung herstellen
+// 	//TODO TLSConfig genauer anschauen - Sicherheitsprüfung
+// 	versuch := 1
+// erneutVerbinden:
+// 	log.Info(fmt.Sprintf("Verbinde mit SMTP-Server (Versuch %d)...", versuch))
+// 	mitteleuropa, _ := time.LoadLocation("Europe/Vienna")
+// 	datumStr := time.Now().AddDate(0, 0, -1).In(mitteleuropa).Format("2006-01-02") // gestrigen Bericht versenden
+// 	d := gomail.NewDialer(smtpServer, smtpPort, smtpUser, smtpPass)
+// 	s, err := d.Dial()
+// 	if err != nil {
+// 		if versuch < 4 {
+// 			log.Err(fmt.Sprintf("FEHLER beim Verbinden zum SMTP-Server: %s - Versuche erneut in 5 Minuten.\n", err))
+// 			time.Sleep(5 * time.Minute)
+// 			versuch++
+// 			goto erneutVerbinden
+// 		} else {
+// 			log.Err(fmt.Sprintf("FEHLER beim Verbinden zum SMTP-Server: %s - Abbruch.\n", err))
+// 			os.Exit(2)
+// 		}
+// 	}
+// 	msg := gomail.NewMessage()
+// 	// Bericht jeder SZ versenden
+// 	log.Info("Versende Berichte...")
+// 	for szName, sz := range konfig.Steuerzentralen {
+// 		// relevante Werte extrahieren
+// 		status := szStatus[szName]
+// 		log.Info(fmt.Sprintf("[%s] Erstelle Nachricht...\n", szName))
+// 		// Nachricht erstellen
+// 		msg.SetHeader("From", smtpSender)
+// 		msg.SetHeader("To", smtpReceivers...)
+// 		//msg.SetAddressHeader("Cc", "dan@example.com", "Dan")
+// 		//msg.SetAddressHeader("To", address, name)
+// 		msg.SetHeader("Subject", fmt.Sprintf("SZ-Tagesbericht %s", szName))
+//
+// 		// gibt es einen Bericht für diese SZ?
+// 		// Existiert eine Datei: https://stackoverflow.com/questions/12518876/how-to-check-if-a-file-exists-in-go
+// 		dateiName := fmt.Sprintf("/home/ubuntu/tagesbericht/%s/tagesbericht_%s.pdf", szName, datumStr)
+// 		if _, err := os.Stat(dateiName); os.IsNotExist(err) {
+// 			// kein Bericht vorhanden
+// 			log.Err(fmt.Sprintf("[%s] FEHLER Kein aktueller Tagesbericht für %s gefunden.\n", szName, datumStr))
+// 			msg.SetBody("text/plain", fmt.Sprintf("Kein aktueller Tagesbericht für die Steuerzentrale %s (%s) vorhanden.\nStatus war:\n%s", szName, sz.Bezeichnung, status))
+// 		} else {
+// 			// aktueller Bericht vorhanden
+// 			log.Info(fmt.Sprintf("[%s] OK Aktueller Tagesbericht gefunden.\n", szName))
+// 			msg.Attach(dateiName)
+// 			msg.SetBody("text/plain", fmt.Sprintf("Anbei finden Sie den aktuellen Tagesbericht der Steuerzentrale %s (%s).", szName, sz.Bezeichnung))
+// 		}
+//
+// 		// Send the email to Bob, Cora and Dan.
+// 		/*
+// 			d := gomail.NewDialer(smtpServer, smtpPort, smtpUser, smtpPass)
+// 			if err := d.DialAndSend(m); err != nil {
+// 				panic(err)
+// 			}
+// 		*/
+// 		if err := gomail.Send(s, msg); err != nil {
+// 			log.Err(fmt.Sprintf("[%s] FEHLER beim Senden der Nachricht: %s\n", szName, err))
+// 		} else {
+// 			log.Info(fmt.Sprintf("[%s] OK Nachricht erfolgreich abgeschickt\n", szName))
+// 		}
+//
+// 		// Nachricht leeren -> wiederverwendbar
+// 		msg.Reset()
+// 	}
+//
+// 	// Erfolg
+// 	log.Info("OK Nachrichten erfolgreich gesendet")
+// 	log.Info("Sitzung beendet.")
+// }
 
 func protokollVerbinden() {
 	var err error
