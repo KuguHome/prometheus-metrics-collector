@@ -81,15 +81,29 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//if there are more elements in the array, keep going
 	for dec.More(){
 		var machine Machine
+
+		//this is essentially the parsing part
 		if err := dec.Decode(&machine); err == io.EOF {
 			break
 		} else if err != nil {
 			log.Fatal(err)
 		}
+
 		host := machine.Master.Host
-		port := machine.Master.Tunnels[1].Port
+		var httpIdx int
+
+		//find the http port
+		for idx, master := range machine.Master.Tunnels {
+			if string(master.ProtoType) == "http"{
+					httpIdx = idx
+					break
+			}
+		}
+
+		port := machine.Master.Tunnels[httpIdx].Port
 		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node.txt | relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", port, host, *outNameArg)
 		outBytes, err := exec.Command(cmdstr).Output()
 		if err != nil {
