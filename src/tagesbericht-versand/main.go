@@ -48,7 +48,8 @@ import (
 )
 
 var (
-	inFileFlagArg = kingpin.Flag("something", "Read in a .json file.").File()
+	inFileFlagArg = kingpin.Flag("json", "Read in a .json file.").File()
+	outNameArg = kingpin.Flag("name", "Append a name to the nodes").String()
 )
 
 func main() {
@@ -74,12 +75,11 @@ func main() {
 		Master Master `json:"master"`
 	}
 
-	// read open bracket
-	t, err := dec.Token()
+	// ignore open bracket
+	_, err := dec.Token()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%T: %v\n", t, t)
 
 	for dec.More(){
 		var machine Machine
@@ -88,16 +88,21 @@ func main() {
 		} else if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("Host: %v\n", machine.Master.Host)
-		fmt.Printf("Port: %v\n", machine.Master.Tunnels[1].Port)
-		fmt.Println("");
+		host := machine.Master.Host
+		port := machine.Master.Tunnels[1].Port
+		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node.txt | relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", port, host, *outNameArg)
+		//outBytes, _ := exec.Command(cmdstr).Output()
+		fmt.Println(cmdstr)
+
+		//fmt.Printf("Host: %v\n", host)
+		//fmt.Printf("Port: %v\n", port)
+		//fmt.Println("");
 	}
 
-	// read closing bracket
-	t, err = dec.Token()
+	// ignore closing bracket
+	_, err = dec.Token()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%T: %v\n", t, t)
 
 }
