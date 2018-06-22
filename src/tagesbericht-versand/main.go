@@ -39,7 +39,7 @@ import (
 	"fmt"
 	"io"
 	"bufio"
-	//"os/exec"
+	"os/exec"
 	"encoding/json"
 	"log"
 
@@ -91,12 +91,11 @@ func main() {
 		host := machine.Master.Host
 		port := machine.Master.Tunnels[1].Port
 		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node.txt | relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", port, host, *outNameArg)
-		//outBytes, _ := exec.Command(cmdstr).Output()
-		fmt.Println(cmdstr)
-
-		//fmt.Printf("Host: %v\n", host)
-		//fmt.Printf("Port: %v\n", port)
-		//fmt.Println("");
+		outBytes, err := exec.Command(cmdstr).Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(outBytes))
 	}
 
 	// ignore closing bracket
