@@ -38,41 +38,40 @@ import (
 	//"os"
 	"fmt"
 	"io"
+	"bufio"
 	//"os/exec"
 	"encoding/json"
 	"log"
-	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 	//"github.com/buger/jsonparser"
 )
 
 var (
-	inFileFlagArg = kingpin.Flag("something", "Read in a .json file.").String()
+	inFileFlagArg = kingpin.Flag("something", "Read in a .json file.").File()
 )
 
 func main() {
 	kingpin.Parse()
 
-	dec := json.NewDecoder(strings.NewReader(*inFileFlagArg))
-	fmt.Println(dec);
+	dec := json.NewDecoder(bufio.NewReader(*inFileFlagArg))
 
 	type Tunnel struct {
-		ProtoType string
-		User string
-		Port string
+		ProtoType string `json:"type"`
+		User string `json:"user"`
+		Port string `json:"port"`
 	}
 
 	type Master struct {
-		Host string
-		Tunnels []Tunnel
-		Description string
-		Name string
-		ID string
+		Host string `json:"host"`
+		Tunnels []Tunnel `json:"tunnels"`
+		Description string `json:"description"`
+		Name string `json:"name"`
+		ID int `json:"id"`
 	}
 
 	type Machine struct {
-		Masters []Master
+		Master Master `json:"master"`
 	}
 
 	// read open bracket
@@ -83,17 +82,22 @@ func main() {
 	fmt.Printf("%T: %v\n", t, t)
 
 	for dec.More(){
-		var master Master
-		if err := dec.Decode(&master); err == io.EOF {
+		var machine Machine
+		if err := dec.Decode(&machine); err == io.EOF {
 			break
 		} else if err != nil {
 			log.Fatal(err)
 		}
-		host := master.Host
-		port := master.Tunnels[1].Port
-		fmt.Println("Host: %s", host)
-		fmt.Println("Port: %s", port)
+		fmt.Printf("Host: %v\n", machine.Master.Host)
+		fmt.Printf("Port: %v\n", machine.Master.Tunnels[1].Port)
 		fmt.Println("");
 	}
+
+	// read closing bracket
+	t, err = dec.Token()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%T: %v\n", t, t)
 
 }
