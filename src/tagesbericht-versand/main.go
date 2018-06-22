@@ -38,6 +38,7 @@ import (
 	//"os"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 	"github.com/buger/jsonparser"
@@ -55,7 +56,7 @@ func main() {
 		[]string{"master", "tunnels", "[0]", "port"},
 		[]string{"master", "host"},
 	}
-	//var port string
+	var port string
 	//var host string
 
 	//iterate through all the machines
@@ -63,11 +64,10 @@ func main() {
 		jsonparser.EachKey(value1, func(idx int, value2 []byte, vt jsonparser.ValueType, err error){
 			switch idx {
 				case 0:
-								fmt.Println(string(value2))
-								//port = string(value2)
+								port = string(value2)
 				case 1:
-								fmt.Println(string(value2))
-								//host = string(value2)
+								outBytes, _ := exec.Command("ssh", "-P", port, string(value2)).CombinedOutput()
+								fmt.Println(string(outBytes))
 			}
 	   }, paths...)
 	 })
