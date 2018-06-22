@@ -57,7 +57,7 @@ func main() {
 		[]string{"master", "host"},
 	}
 	var port string
-	//var host string
+	var host string
 
 	//iterate through all the machines
 	jsonparser.ArrayEach(jsonArr, func(value1 []byte, dataType jsonparser.ValueType, offset int, err error) {
@@ -66,9 +66,10 @@ func main() {
 				case 0:
 								port = string(value2)
 				case 1:
-								outBytes, _ := exec.Command("ssh", "-P", port, string(value2)).CombinedOutput()
-								fmt.Println(string(outBytes))
+								host = string(value2)
 			}
 	   }, paths...)
+		 outBytes, _ := exec.Command("ssh", "-p", port, host).CombinedOutput()
+		 fmt.Println(string(outBytes))
 	 })
 }
