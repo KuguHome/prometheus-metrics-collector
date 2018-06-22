@@ -1,41 +1,6 @@
 package main
 
-// import (
-//   "github.com/buger/jsonparser"
-//   "fmt"
-// )
-//
-// func main() {
-//   data := []byte(`{
-//     "person": {
-//       "name": {
-//         "first": "Leonid",
-//         "last": "Bugaev",
-//         "fullName": "Leonid Bugaev"
-//       },
-//       "github": {
-//         "handle": "buger",
-//         "followers": 109
-//       },
-//       "avatars": [
-//         { "url": "penis", "type": "thumbnail" },
-// 				{ "url": "morepenis", "type": "thumbnail" }
-//       ]
-//     },
-//     "company": {
-//       "name": "Acme"
-//     }
-//   }`)
-//
-//   jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-//   	fmt.Println(jsonparser.GetString(value, "url"))
-//   }, "person", "avatars")
-//
-// }
-
 import (
-	//"log/syslog"
-	//"os"
 	"fmt"
 	"io"
 	"bufio"
@@ -44,7 +9,6 @@ import (
 	"log"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	//"github.com/buger/jsonparser"
 )
 
 var (
