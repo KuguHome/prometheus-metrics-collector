@@ -37,11 +37,14 @@ import (
 	//"log/syslog"
 	//"os"
 	"fmt"
-	"io/ioutil"
-	"os/exec"
+	"io"
+	//"os/exec"
+	"encoding/json"
+	"log"
+	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	"github.com/buger/jsonparser"
+	//"github.com/buger/jsonparser"
 )
 
 var (
@@ -51,25 +54,46 @@ var (
 func main() {
 	kingpin.Parse()
 
-	jsonArr, _ := ioutil.ReadFile(*inFileFlagArg)
-	paths := [][]string {
-		[]string{"master", "tunnels", "[0]", "port"},
-		[]string{"master", "host"},
-	}
-	var port string
-	var host string
+	dec := json.NewDecoder(strings.NewReader(*inFileFlagArg))
+	fmt.Println(dec);
 
-	//iterate through all the machines
-	jsonparser.ArrayEach(jsonArr, func(value1 []byte, dataType jsonparser.ValueType, offset int, err error) {
-		jsonparser.EachKey(value1, func(idx int, value2 []byte, vt jsonparser.ValueType, err error){
-			switch idx {
-				case 0:
-								port = string(value2)
-				case 1:
-								host = string(value2)
-			}
-	   }, paths...)
-		 outBytes, _ := exec.Command("ssh", "-p", port, host).CombinedOutput()
-		 fmt.Println(string(outBytes))
-	 })
+	type Tunnel struct {
+		ProtoType string
+		User string
+		Port string
+	}
+
+	type Master struct {
+		Host string
+		Tunnels []Tunnel
+		Description string
+		Name string
+		ID string
+	}
+
+	type Machine struct {
+		Masters []Master
+	}
+
+	// read open bracket
+	t, err := dec.Token()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%T: %v\n", t, t)
+
+	for dec.More(){
+		var master Master
+		if err := dec.Decode(&master); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+		host := master.Host
+		port := master.Tunnels[1].Port
+		fmt.Println("Host: %s", host)
+		fmt.Println("Port: %s", port)
+		fmt.Println("");
+	}
+
 }
