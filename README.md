@@ -4,4 +4,4 @@ This is a program currently installed on our central component server (zentralko
 ## how to compile
 
 1. ```GOPATH="$GOPATH:`pwd`" go get -d ...```
-1. ```GOPATH="$GOPATH:`pwd`" go install tagesbericht-versand```
+2. ```GOPATH="$GOPATH:`pwd`" go install tagesbericht-versand```

@@ -21,6 +21,7 @@ func main() {
 	//essentially a parser
 	dec := json.NewDecoder(bufio.NewReader(*inFileFlagArg))
 
+	//set up structs for the parser
 	type Tunnel struct {
 		ProtoType string `json:"type"`
 		User string `json:"user"`
@@ -56,22 +57,22 @@ func main() {
 			log.Fatal(err)
 		}
 
+		//find relevant fields for command line args
 		host := machine.Master.Host
-		var httpIdx int
+		name := machine.Master.Name
 
 		//find the http port
+		var httpIdx int
 		for idx, master := range machine.Master.Tunnels {
 			if string(master.ProtoType) == "http"{
 					httpIdx = idx
 					break
 			}
 		}
-
-		name := machine.Master.Name
+		port := machine.Master.Tunnels[httpIdx].Port
 
 		//execute in command line
-		port := machine.Master.Tunnels[httpIdx].Port
-		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node_exporter.prom | ./relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", host, port, name)
+		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node_exporter.prom | ./relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/machine_type/sz/machine/%s", host, port, name)
 		outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
 		if err != nil {
 			log.Fatal(err)
