@@ -13,12 +13,12 @@ import (
 
 var (
 	inFileFlagArg = kingpin.Flag("json", "Read in a .json file.").File()
-	outNameArg = kingpin.Flag("name", "Append a name to the nodes").String()
 )
 
 func main() {
 	kingpin.Parse()
 
+	//essentially a parser
 	dec := json.NewDecoder(bufio.NewReader(*inFileFlagArg))
 
 	type Tunnel struct {
@@ -49,7 +49,7 @@ func main() {
 	for dec.More(){
 		var machine Machine
 
-		//this is essentially the parsing part
+		//parse with decorder
 		if err := dec.Decode(&machine); err == io.EOF {
 			break
 		} else if err != nil {
@@ -67,9 +67,12 @@ func main() {
 			}
 		}
 
+		name := machine.Master.Name
+
+		//execute in command line
 		port := machine.Master.Tunnels[httpIdx].Port
-		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node.txt | relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", port, host, *outNameArg)
-		outBytes, err := exec.Command(cmdstr).Output()
+		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node_exporter.prom | ./relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", host, port, name)
+		outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
 		if err != nil {
 			log.Fatal(err)
 		}
