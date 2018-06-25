@@ -68,7 +68,7 @@ func main() {
 		}
 
 		port := machine.Master.Tunnels[httpIdx].Port
-		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node.txt | relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", port, host, *outNameArg)
+		cmdstr := fmt.Sprintf("curl -s http://%v:%v/static/metrics/node_exporter.prom | ./relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", host, port, *outNameArg)
 		outBytes, err := exec.Command(cmdstr).Output()
 		if err != nil {
 			log.Fatal(err)
