@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	inFileFlagArg = kingpin.Flag("json", "Read in a .json file.").File()
+	inFileFlagArg = kingpin.Flag("json", "Read in a .json file.").PlaceHolder("file_name").File()
 )
 
 func main() {
