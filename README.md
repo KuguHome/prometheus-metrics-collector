@@ -10,8 +10,8 @@ This is a program currently installed on our central component server (zentralko
 This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above.
 
 ### Command Line
-`--json`
-Read in from a .json file "file_name"
+`--json <file_name>`
+Read in from a .json file \<file_name\>
 
 `--delete-old`
 Delete old, repeated scrapes in the event of a server cut
