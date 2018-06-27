@@ -13,10 +13,13 @@ This program reads in a .json file containing a list of control units and their 
 `--json`
 Read in from a .json file "file_name"
 
+`--delete-old`
+Delete old, repeated scrapes in the event of a server cut
+
 ### Example
 This is an example call to the program from the command line. "sz.json" is the file containing the information of all of the control units.
 ```
-./metrics-collector --json sz.json
+./metrics-collector --delete-old --json sz.json
 ```
 
 ### Development/Build Setup
