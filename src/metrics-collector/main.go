@@ -12,8 +12,10 @@ import (
 )
 
 var (
+	//TODO: add flag --push-label that adds name-value pairs onto each push thing i.e. http://localhost:9091/metrics/{job/node}/machine_type/sz/machine/%s
 	inFileFlagArg = kingpin.Flag("json", "Read in a .json file.").PlaceHolder("file_name").File()
 	deleteOld = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool();
+	
 )
 
 func main() {
@@ -75,8 +77,8 @@ func main() {
 		//remove all old metrics if server cuts so we don't a bunch of the same stuff
 		var cmdstr string
 		if *deleteOld {
-			cmdstr = fmt.Sprintf("curl -X DELETE http://localhost:9091/metrics/job/node/instance/kugu-sz-%s", name)
-			outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
+			cmdstr = fmt.Sprintf("http://localhost:9091/metrics/job/node/machine_type/sz/machine/%s", name)
+			outBytes, err := exec.Command("curl", "-X", "DELETE", cmdstr).Output()
 			if err != nil {
 				log.Fatal(err)
 			}
