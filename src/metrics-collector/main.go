@@ -19,8 +19,8 @@ var (
 	pushLabelCommand = kingpin.Command("push-label", "Add name-value pairs to push names in the form <name>=<value>")
 	pushLabelArgs = pushLabelCommand.Arg("push-label-args", "push arguments").Strings()
 	machineLabelFlag = kingpin.Flag("machine-label", "Specify the machine label").PlaceHolder("machine_label").String()
-	pushUrlFlag = kingpin.Flag("push-url", "Specify the url to read from").PlaceHolder("url").String()
-	readPathFlag = kingpin.Flag("read-path", "specify the path to read from").PlaceHolder("read_path").String()
+	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").PlaceHolder("url").String()
+	readPathFlag = kingpin.Flag("read-path", "specify the path to read from (include a leading forward slash)").PlaceHolder("read_path").String()
 )
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 		}
 		pushPathStr = fmt.Sprintf("%s/%s/%s", pushPathStr, key, value)
 	}
-	fmt.Println(pushPathStr)
+	pushPathStr = "/" + pushPathStr
 
 	//if there are more elements in the array, keep going
 	for dec.More(){
@@ -92,9 +92,10 @@ func main() {
 
 		//remove all old metrics if server cuts so we don't a bunch of the same stuff
 		var cmdstr string
+		var finalPushPath string
 		if *deleteOldFlag {
-			cmdstr = fmt.Sprintf("http://localhost:9091/metrics/job/node/machine_type/sz/machine/%s", name)
-			outBytes, err := exec.Command("curl", "-X", "DELETE", cmdstr).Output()
+			finalPushPath = fmt.Sprintf("%s%smachine/%s", *pushURLFlag, pushPathStr, name)
+			outBytes, err := exec.Command("curl", "-X", "DELETE", finalPushPath).Output()
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -102,7 +103,7 @@ func main() {
 		}
 
 		//execute in command line
-		cmdstr = fmt.Sprintf("curl -s http://%s:%s/static/metrics/node_exporter.prom | ./relabeler --drop-default-metrics | curl --data-binary @- http://localhost:9091/metrics/job/node/machine_type/sz/machine/%s", host, port, name)
+		cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, *readPathFlag, finalPushPath)
 		outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
 		if err != nil {
 			log.Fatal(err)
