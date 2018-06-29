@@ -7,22 +7,27 @@ import (
 	"os/exec"
 	"encoding/json"
 	"log"
+	"regexp"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
 	//TODO: add flag --push-label that adds name-value pairs onto each push thing i.e. http://localhost:9091/metrics/{job/node}/machine_type/sz/machine/%s
-	inFileFlagArg = kingpin.Flag("json", "Read in a .json file.").PlaceHolder("file_name").File()
-	deleteOld = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool();
-	
+	inFileFlag = kingpin.Flag("json", "Read in a .json file.").PlaceHolder("file_name").File()
+	deleteOldFlag = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool()
+	pushLabelCommand = kingpin.Command("push-label", "Add name-value pairs to push names in the form <name>=<value>")
+	pushLabelArgs = pushLabelCommand.Arg("push-label-args", "push arguments").Strings()
+	machineLabelFlag = kingpin.Flag("machine-label", "Specify the machine label").PlaceHolder("machine_label").String()
+	pushUrlFlag = kingpin.Flag("push-url", "Specify the url to read from").PlaceHolder("url").String()
+	readPathFlag = kingpin.Flag("read-path", "specify the path to read from").PlaceHolder("read_path").String()
 )
 
 func main() {
 	kingpin.Parse()
 
 	//essentially a parser
-	dec := json.NewDecoder(bufio.NewReader(*inFileFlagArg))
+	dec := json.NewDecoder(bufio.NewReader(*inFileFlag))
 
 	//set up structs for the parser
 	type Tunnel struct {
@@ -49,11 +54,22 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//set up push path
+	var pushPathStr string
+	for _, elem := range *pushLabelArgs {
+		key, value, err := kvParse(elem)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pushPathStr = fmt.Sprintf("%s/%s/%s", pushPathStr, key, value)
+	}
+	fmt.Println(pushPathStr)
+
 	//if there are more elements in the array, keep going
 	for dec.More(){
 		var machine Machine
 
-		//parse with decorder
+		//parse with decoder
 		if err := dec.Decode(&machine); err == io.EOF {
 			break
 		} else if err != nil {
@@ -76,7 +92,7 @@ func main() {
 
 		//remove all old metrics if server cuts so we don't a bunch of the same stuff
 		var cmdstr string
-		if *deleteOld {
+		if *deleteOldFlag {
 			cmdstr = fmt.Sprintf("http://localhost:9091/metrics/job/node/machine_type/sz/machine/%s", name)
 			outBytes, err := exec.Command("curl", "-X", "DELETE", cmdstr).Output()
 			if err != nil {
@@ -99,5 +115,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
 
+var strRegex string
+
+func kvParse(str string) (string, string, error) {
+	parts := regexp.MustCompile("=").Split(str, 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("expected KEY=VALUE got '%s'", str)
+	}
+	return parts[0], parts[1], nil
 }
