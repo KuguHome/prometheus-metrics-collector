@@ -20,7 +20,7 @@ var (
 	pushLabelArgs = pushLabelCommand.Arg("push-label-args", "push arguments").Strings()
 	machineLabelFlag = kingpin.Flag("machine-label", "Specify the machine label").PlaceHolder("machine_label").String()
 	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").PlaceHolder("url").String()
-	readPathFlag = kingpin.Flag("read-path", "specify the path to read from (include a leading forward slash)").PlaceHolder("read_path").String()
+	readPathFlags = kingpin.Flag("read-path", "specify the paths to read from (include a leading forward slash)").PlaceHolder("read_path").Strings()
 )
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 		}
 		pushPathStr = fmt.Sprintf("%s/%s/%s", pushPathStr, key, value)
 	}
-	pushPathStr = "/" + pushPathStr
+	pushPathStr = pushPathStr + "/"
 
 	//if there are more elements in the array, keep going
 	for dec.More(){
@@ -99,11 +99,13 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
+			//fmt.Println("curl -X DELETE %s", finalPushPath)
 			fmt.Println(string(outBytes))
 		}
 
 		//execute in command line
-		cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, *readPathFlag, finalPushPath)
+		cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, *readPathFlags, finalPushPath)
+		//fmt.Println(cmdstr)
 		outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
 		if err != nil {
 			log.Fatal(err)
