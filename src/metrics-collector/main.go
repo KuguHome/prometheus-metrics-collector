@@ -13,14 +13,13 @@ import (
 )
 
 var (
-	//TODO: add flag --push-label that adds name-value pairs onto each push thing i.e. http://localhost:9091/metrics/{job/node}/machine_type/sz/machine/%s
-	inFileFlag = kingpin.Flag("json", "Read in a .json file.").PlaceHolder("file_name").File()
+	inFileFlag = kingpin.Flag("json", "Read in a .json file.").Required().PlaceHolder("file_name").File()
 	deleteOldFlag = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool()
 	pushLabelCommand = kingpin.Command("push-label", "Add name-value pairs to push names in the form <name>=<value>")
 	pushLabelArgs = pushLabelCommand.Arg("push-label-args", "push arguments").Strings()
-	machineLabelFlag = kingpin.Flag("machine-label", "Specify the machine label").PlaceHolder("machine_label").String()
-	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").PlaceHolder("url").String()
-	readPathFlags = kingpin.Flag("read-path", "specify the paths to read from (include a leading forward slash)").PlaceHolder("read_path").Strings()
+	machineLabelFlag = kingpin.Flag("machine-label", "Specify the machine label").Required().PlaceHolder("machine_label").String()
+	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").Required().PlaceHolder("url").String()
+	readPathFlags = kingpin.Flag("read-path", "specify the paths to read from (include a leading forward slash)").Required().PlaceHolder("read_path").Strings()
 )
 
 func main() {
@@ -54,7 +53,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//set up push path
+	//set up push path without machine/name
 	var pushPathStr string
 	for _, elem := range *pushLabelArgs {
 		key, value, err := kvParse(elem)
@@ -63,7 +62,6 @@ func main() {
 		}
 		pushPathStr = fmt.Sprintf("%s/%s/%s", pushPathStr, key, value)
 	}
-	pushPathStr = pushPathStr + "/"
 
 	//if there are more elements in the array, keep going
 	for dec.More(){
@@ -80,6 +78,9 @@ func main() {
 		host := machine.Master.Host
 		name := machine.Master.Name
 
+		//fullPushPathStr including machine/name
+		fullPushPathStr := fmt.Sprintf("%s%s/%s/%s", *pushURLFlag, pushPathStr, *machineLabelFlag, name)
+
 		//find the http port
 		var httpIdx int
 		for idx, master := range machine.Master.Tunnels {
@@ -92,25 +93,25 @@ func main() {
 
 		//remove all old metrics if server cuts so we don't a bunch of the same stuff
 		var cmdstr string
-		var finalPushPath string
 		if *deleteOldFlag {
-			finalPushPath = fmt.Sprintf("%s%smachine/%s", *pushURLFlag, pushPathStr, name)
-			outBytes, err := exec.Command("curl", "-X", "DELETE", finalPushPath).Output()
+			outBytes, err := exec.Command("curl", "-X", "DELETE", fullPushPathStr).Output()
 			if err != nil {
-				log.Fatal(err)
+				fmt.Printf("DELETE: %s does not already exist. Continuing.\n", fullPushPathStr)
 			}
-			//fmt.Println("curl -X DELETE %s", finalPushPath)
+			//fmt.Println("curl -X DELETE %s", fullPushPathStr)
 			fmt.Println(string(outBytes))
 		}
 
-		//execute in command line
-		cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, *readPathFlags, finalPushPath)
-		//fmt.Println(cmdstr)
-		outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
-		if err != nil {
-			log.Fatal(err)
+		for _, elem := range *readPathFlags {
+			//execute in command line
+			cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, elem, fullPushPathStr)
+			//fmt.Println(cmdstr)
+			outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
+			if err != nil {
+				//probably want it to print something here eventually
+			}
+			fmt.Println(string(outBytes))
 		}
-		fmt.Println(string(outBytes))
 	}
 
 	// ignore closing bracket
