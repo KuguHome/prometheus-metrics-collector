@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log"
 	"regexp"
+	"net/http"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -92,7 +93,6 @@ func main() {
 		port := machine.Master.Tunnels[httpIdx].Port
 
 		//remove all old metrics if server cuts so we don't a bunch of the same stuff
-		var cmdstr string
 		if *deleteOldFlag {
 			outBytes, err := exec.Command("curl", "-X", "DELETE", fullPushPathStr).Output()
 			if err != nil {
@@ -102,15 +102,26 @@ func main() {
 			fmt.Println(string(outBytes))
 		}
 
-		for _, elem := range *readPathFlags {
-			//execute in command line
-			cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, elem, fullPushPathStr)
-			//fmt.Println(cmdstr)
-			outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
+		for _, path := range *readPathFlags {
+			//TODO: no more command line, use http package
+			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
+			getResp, err := http.Get(hostStr)
+    	if err != nil {
+        	log.Fatalf("%s", err)
+    	}
+			_, err = http.Post(fullPushPathStr, "application/octet-stream", getResp.Body)
 			if err != nil {
+        	log.Fatalf("%s", err)
+    	}
+
+			//execute in command line
+			//cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, elem, fullPushPathStr)
+			//fmt.Println(cmdstr)
+			//outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
+			//if err != nil {
 				//probably want it to print something here eventually
-			}
-			fmt.Println(string(outBytes))
+			//}
+			//fmt.Println(string(outBytes))
 		}
 	}
 
