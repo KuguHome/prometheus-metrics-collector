@@ -21,6 +21,14 @@ var (
 	machineLabelFlag = kingpin.Flag("machine-label", "Specify the machine label").Required().PlaceHolder("machine_label").String()
 	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").Required().PlaceHolder("url").String()
 	readPathFlags = kingpin.Flag("read-path", "specify the paths to read from (include a leading forward slash)").Required().PlaceHolder("read_path").Strings()
+
+	relabelCommand = kingpin.Command("relabel", "Flags for the relabeler")
+	relabelLabelFlagArgs = relabelCommand.Flag("add-label", "Add a label and value in the form <label>=<value>.").PlaceHolder("<label>=<value>").Short('a').StringMap()
+	relabelDropFlagArgs = relabelCommand.Flag("drop-metric", "Drop a metric").PlaceHolder("some_metric").Short('d').Strings()
+	relabelInFileFlagArg = relabelCommand.Flag("in", "Read in a file").PlaceHolder("file_name").File();
+	relabelOutFileFlagArg = relabelCommand.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
+	relabelDefaultDropFlag = relabelCommand.Flag("drop-default-metrics", "Drop default metrics").Bool();
+	relabelInDirFlagArg = relabelCommand.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
 )
 
 func main() {
@@ -111,10 +119,11 @@ func main() {
 					//relabeler.something that adds metric
     	}
 
+			relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg)
+
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", getResp.Body)
 			if err != nil {
         	fmt.Printf("%s\n", err)
-					fmt.Println("get")
     	}
 
 			//execute in command line
