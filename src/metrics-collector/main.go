@@ -107,11 +107,14 @@ func main() {
 			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
 			getResp, err := http.Get(hostStr)
     	if err != nil {
-        	fmt.Printf("%s", err)
+					//create a new metric saying the thingy is off
+					//relabeler.something that adds metric
     	}
+
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", getResp.Body)
 			if err != nil {
-        	fmt.Printf("%s", err)
+        	fmt.Printf("%s\n", err)
+					fmt.Println("get")
     	}
 
 			//execute in command line
