@@ -9,6 +9,7 @@ import (
 	"log"
 	"regexp"
 	"net/http"
+	"bytes"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -22,13 +23,12 @@ var (
 	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").Required().PlaceHolder("url").String()
 	readPathFlags = kingpin.Flag("read-path", "specify the paths to read from (include a leading forward slash)").Required().PlaceHolder("read_path").Strings()
 
-	relabelCommand = kingpin.Command("relabel", "Flags for the relabeler")
-	relabelLabelFlagArgs = relabelCommand.Flag("add-label", "Add a label and value in the form <label>=<value>.").PlaceHolder("<label>=<value>").Short('a').StringMap()
-	relabelDropFlagArgs = relabelCommand.Flag("drop-metric", "Drop a metric").PlaceHolder("some_metric").Short('d').Strings()
-	relabelInFileFlagArg = relabelCommand.Flag("in", "Read in a file").PlaceHolder("file_name").File();
-	relabelOutFileFlagArg = relabelCommand.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
-	relabelDefaultDropFlag = relabelCommand.Flag("drop-default-metrics", "Drop default metrics").Bool();
-	relabelInDirFlagArg = relabelCommand.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
+	relabelLabelFlagArgs = kingpin.Flag("add-label", "Add a label and value in the form <label>=<value>.").PlaceHolder("<label>=<value>").Short('a').StringMap()
+	relabelDropFlagArgs = kingpin.Flag("drop-metric", "Drop a metric").PlaceHolder("some_metric").Short('d').Strings()
+	relabelInFileFlagArg = kingpin.Flag("in", "Read in a file").PlaceHolder("file_name").File();
+	relabelOutFileFlagArg = kingpin.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
+	relabelDefaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
+	relabelInDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
 )
 
 func main() {
@@ -36,6 +36,8 @@ func main() {
 
 	//essentially a parser
 	dec := json.NewDecoder(bufio.NewReader(*inFileFlag))
+
+	var rStruct Relabeler
 
 	//set up structs for the parser
 	type Tunnel struct {
@@ -119,21 +121,11 @@ func main() {
 					//relabeler.something that adds metric
     	}
 
-			relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg)
-
-			_, err = http.Post(fullPushPathStr, "application/octet-stream", getResp.Body)
+			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
+			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
         	fmt.Printf("%s\n", err)
     	}
-
-			//execute in command line
-			//cmdstr = fmt.Sprintf("curl -s http://%s:%s%s | ./relabeler --drop-default-metrics | curl --data-binary @- %s", host, port, elem, fullPushPathStr)
-			//fmt.Println(cmdstr)
-			//outBytes, err := exec.Command("bash", "-c", cmdstr).Output()
-			//if err != nil {
-				//probably want it to print something here eventually
-			//}
-			//fmt.Println(string(outBytes))
 		}
 	}
 
