@@ -15,9 +15,6 @@ import (
 )
 
 //struct to hold the resposne from the get function
-type HTTPResponse struct {
-	GetResp http.Response
-}
 
 var (
 	inFileFlag = kingpin.Flag("json", "Read in a .json file.").Required().PlaceHolder("file_name").File()
@@ -34,6 +31,8 @@ var (
 	relabelOutFileFlagArg = kingpin.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
 	relabelDefaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
 	relabelInDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
+
+	getResponse *http.Response
 )
 
 func main() {
@@ -43,7 +42,6 @@ func main() {
 	dec := json.NewDecoder(bufio.NewReader(*inFileFlag))
 
 	var rStruct Relabeler
-	var response HTTPResponse
 
 	//set up structs for the parser
 	type Tunnel struct {
@@ -121,7 +119,8 @@ func main() {
 					Help:      "1 if device is up, 0 if it is not.",
 				},
 				func() float64 { //get command
-						err := response.getResp(hostStr)
+					var err error
+						getResponse, err = http.Get(hostStr)
 						if err != nil { return 1 }
 						return 0
 					},
@@ -131,7 +130,7 @@ func main() {
 					//metricscollector_target_up{machine="sz-stubbe1"} 0
 
 			//relabels and then sets OutBytes in rStruct to the byte array of the output
-			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, response.GetResp.Body)
+			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResponse.Body)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
         	fmt.Printf("%s\n", err)
@@ -172,10 +171,4 @@ func deletePath(path string) {
     }
 
     defer resp.Body.Close()
-}
-
-func (response *HTTPResponse) getResp(hostStr string) error {
-	resp, err := http.Get(hostStr)
-	response.GetResp = *resp
-	return err
 }
