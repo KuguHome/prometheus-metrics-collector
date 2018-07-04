@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"bufio"
-	"os/exec"
 	"encoding/json"
 	"log"
 	"regexp"
@@ -12,7 +11,13 @@ import (
 	"bytes"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+//struct to hold the resposne from the get function
+type HTTPResponse struct {
+	GetResp http.Response
+}
 
 var (
 	inFileFlag = kingpin.Flag("json", "Read in a .json file.").Required().PlaceHolder("file_name").File()
@@ -38,6 +43,7 @@ func main() {
 	dec := json.NewDecoder(bufio.NewReader(*inFileFlag))
 
 	var rStruct Relabeler
+	var response HTTPResponse
 
 	//set up structs for the parser
 	type Tunnel struct {
@@ -102,26 +108,30 @@ func main() {
 		}
 		port := machine.Master.Tunnels[httpIdx].Port
 
-		//remove all old metrics if server cuts so we don't a bunch of the same stuff
 		if *deleteOldFlag {
-			outBytes, err := exec.Command("curl", "-X", "DELETE", fullPushPathStr).Output()
-			if err != nil {
-				fmt.Printf("DELETE: %s does not already exist. Continuing.\n", fullPushPathStr)
-			}
-			//fmt.Println("curl -X DELETE %s", fullPushPathStr)
-			fmt.Println(string(outBytes))
+			deletePath(fullPushPathStr)
 		}
 
 		for _, path := range *readPathFlags {
-			//TODO: no more command line, use http package
+			//add a new metric that says if the device is on or on while performing the get command
 			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
-			getResp, err := http.Get(hostStr)
-    	if err != nil {
-					//create a new metric saying the thingy is off
+			prometheus.Register(prometheus.NewGaugeFunc(
+				prometheus.GaugeOpts{
+					Name:      "metricscollector_target_up",
+					Help:      "1 if device is up, 0 if it is not.",
+				},
+				func() float64 { //get command
+						err := response.getResp(hostStr)
+						if err != nil { return 1 }
+						return 0
+					},
+				))
+					//TODO: create a new metric saying the thingy is off
 					//relabeler.something that adds metric
-    	}
+					//metricscollector_target_up{machine="sz-stubbe1"} 0
 
-			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
+			//relabels and then sets OutBytes in rStruct to the byte array of the output
+			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, response.GetResp.Body)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
         	fmt.Printf("%s\n", err)
@@ -144,4 +154,28 @@ func kvParse(str string) (string, string, error) {
 		return "", "", fmt.Errorf("expected KEY=VALUE got '%s'", str)
 	}
 	return parts[0], parts[1], nil
+}
+
+func deletePath(path string) {
+    client := &http.Client{}
+
+    // Create request
+    req, err := http.NewRequest("DELETE", path, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Fetch Request
+    resp, err := client.Do(req)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    defer resp.Body.Close()
+}
+
+func (response *HTTPResponse) getResp(hostStr string) error {
+	resp, err := http.Get(hostStr)
+	response.GetResp = *resp
+	return err
 }

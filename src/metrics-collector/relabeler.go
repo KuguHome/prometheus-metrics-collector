@@ -15,20 +15,20 @@ import (
   "github.com/golang/protobuf/proto"
   )
 
+  //need this stuct to allow data to be passed outside of the scope of the function without explicitly having to create onoxious parameters
   type Relabeler struct {
     OutBytes []byte
   }
 
   //set up the flags
   var (
+    //so fields are immediately available for helper methods
     labelArgs *map[string]string
     dropArgs *[]string
     inFileArg **os.File
     outFileArg *string
     defaultDrop *bool
     inDirArg *string
-
-    capturedOutBytes *[]byte
 
     defaultFlags = []string{
   		"go_memstats_last_gc_time_seconds",
