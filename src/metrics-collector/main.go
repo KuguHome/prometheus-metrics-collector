@@ -120,7 +120,7 @@ func main() {
 			//slice for extra metricsFamilies
 
 			var extraMetricFamilies []*dto.MetricFamily
-			if getResp.StatusCode == 302 {
+			if getResp.StatusCode == 200 {
 				extraMetricFamilies = append(extraMetricFamilies, addMetricFamilyGauge("metrics_collector_target_up", "1 if target is up, 0 if target is down", 1))
 			} else {
 				extraMetricFamilies = append(extraMetricFamilies, addMetricFamilyGauge("metrics_collector_target_up", "1 if target is up, 0 if target is down", 0))
