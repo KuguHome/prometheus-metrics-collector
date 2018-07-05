@@ -18,6 +18,7 @@ import (
   //need this stuct to allow data to be passed outside of the scope of the function without explicitly having to create onoxious parameters
   type Relabeler struct {
     OutBytes []byte
+
   }
 
   //set up the flags
@@ -71,7 +72,7 @@ import (
   		"http_request_size_bytes"}
   )
 
-func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader) {
+func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader, extraMetricFamilies []*dto.MetricFamily) {
   //parses command line flags into a key=value map
 
   labelArgs = labelFlagArgs
@@ -97,15 +98,15 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
     //e.g. between when the metrics collector gets and posts and it isn't as simple as stdin and stdout
     if inStream != nil {
       buf := new(bytes.Buffer)
-      parseAndRebuild(inStream, buf)
+      parseAndRebuild(inStream, buf, extraMetricFamilies)
       r.OutBytes = buf.Bytes()
     } else {
-      parseAndRebuild(os.Stdin, writer)
+      parseAndRebuild(os.Stdin, writer, extraMetricFamilies)
     }
   } else {
     if *inFileArg != nil && strings.HasSuffix((*inFileArg).Name(), ".prom") {
       reader := bufio.NewReader(*inFileArg)
-      parseAndRebuild(reader, writer)
+      parseAndRebuild(reader, writer, extraMetricFamilies)
     }
     //directory with .prom files
     if *inDirArg != "" {
@@ -119,7 +120,7 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
           if err != nil {
               log.Fatal(err)
           }
-          parseAndRebuild(reader, writer)
+          parseAndRebuild(reader, writer, extraMetricFamilies)
         }
       }
     }
@@ -149,11 +150,18 @@ func pairArgsToSlice() []*dto.LabelPair {
 }
 
 //parses a stream coming in from readFrom, adds and drops metrics, rebuilds it, and writes it to writeTo
-func parseAndRebuild(readFrom io.Reader, writeTo io.Writer) {
+func parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies []*dto.MetricFamily) {
   //creates TextParser and parses text into metrics
   var parser expfmt.TextParser
 
-  parsedFamilies, _ := parser.TextToMetricFamilies(readFrom)
+  parsedFamilies, err := parser.TextToMetricFamilies(readFrom)
+  if err != nil {
+			log.Fatal(err)
+		}
+  //for each device, add extra metrics
+  for _, family := range extraMetricFamilies {
+    parsedFamilies["extra metric"] = family
+  }
   validPairs := pairArgsToSlice()
 
   //add the default drop metrics to the list of metrics to be dropped

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"bytes"
 
+	dto "github.com/prometheus/client_model/go"
+
 	"gopkg.in/alecthomas/kingpin.v2"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -32,7 +34,7 @@ var (
 	relabelDefaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
 	relabelInDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
 
-	getResponse *http.Response
+	extraMetricFamilies []*dto.MetricFamily
 )
 
 func main() {
@@ -113,24 +115,39 @@ func main() {
 		for _, path := range *readPathFlags {
 			//add a new metric that says if the device is on or on while performing the get command
 			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
-			prometheus.Register(prometheus.NewGaugeFunc(
+
+			//this whole thing may be a helper method
+			reg := prometheus.NewRegistry()
+			target := prometheus.NewGaugeVec(
 				prometheus.GaugeOpts{
 					Name:      "metricscollector_target_up",
 					Help:      "1 if device is up, 0 if it is not.",
 				},
-				func() float64 { //get command
-					var err error
-						getResponse, err = http.Get(hostStr)
-						if err != nil { return 1 }
-						return 0
-					},
-				))
+				[]string{"machine"},
+			)
+			reg.MustRegister(target)
 					//TODO: create a new metric saying the thingy is off
 					//relabeler.something that adds metric
 					//metricscollector_target_up{machine="sz-stubbe1"} 0
+			isUp, err := target.GetMetricWithLabelValues(name)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			getResp, err := http.Get(hostStr)
+
+			if err == nil {
+				isUp.Set(1)
+			} else {
+				isUp.Set(0)
+			}
+
+			metricSlice := []*dto.Metric{&isUp}
+
+			addMetricFamily("metrics_collector_target", "information on the target device", 1, metricSlice)
 
 			//relabels and then sets OutBytes in rStruct to the byte array of the output
-			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResponse.Body)
+			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body, extraMetricFamilies)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
         	fmt.Printf("%s\n", err)
@@ -171,4 +188,15 @@ func deletePath(path string) {
     }
 
     defer resp.Body.Close()
+}
+
+func addMetricFamily(name string, help string, mType dto.MetricType, metric []*dto.Metric) {
+	var family dto.MetricFamily
+
+	family.Name = &name
+	family.Help = &help
+	family.Type = &mType
+	family.Metric = metric
+
+	extraMetricFamilies = append(extraMetricFamilies, &family)
 }
