@@ -157,9 +157,9 @@ func parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies 
 
   parsedFamilies, err := parser.TextToMetricFamilies(readFrom)
   if err != nil {
-			log.Fatal(err)
+			//read path doesn't exist
 		}
-    
+
   //for each device, add extra metrics
   parsedFamilies = addFamilies(parsedFamilies, extraMetricFamilies)
 
