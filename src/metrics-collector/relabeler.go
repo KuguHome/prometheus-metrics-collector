@@ -8,6 +8,7 @@ import (
   "log"
   "strings"
   "bytes"
+  "fmt"
 
   dto "github.com/prometheus/client_model/go"
 
@@ -72,7 +73,7 @@ import (
   		"http_request_size_bytes"}
   )
 
-func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader, extraMetricFamilies []*dto.MetricFamily) {
+func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader, extraMetricFamilies []*dto.MetricFamily, bla int) {
   //parses command line flags into a key=value map
 
   labelArgs = labelFlagArgs
@@ -97,6 +98,12 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
     //case that this needs to take in a stream of bytes and then capture the bytes to use as input for something else
     //e.g. between when the metrics collector gets and posts and it isn't as simple as stdin and stdout
     if inStream != nil {
+      if(bla!=0){
+      temp := []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+      io.ReadFull(inStream, temp)
+      fmt.Println(string(temp))
+    }
+
       buf := new(bytes.Buffer)
       parseAndRebuild(inStream, buf, extraMetricFamilies)
       r.OutBytes = buf.Bytes()
@@ -158,10 +165,10 @@ func parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies 
   if err != nil {
 			log.Fatal(err)
 		}
+  fmt.Println("got here once")
   //for each device, add extra metrics
-  for _, family := range extraMetricFamilies {
-    parsedFamilies["extra metric"] = family
-  }
+  parsedFamilies = addFamilies(parsedFamilies, extraMetricFamilies)
+
   validPairs := pairArgsToSlice()
 
   //add the default drop metrics to the list of metrics to be dropped
@@ -175,4 +182,14 @@ func parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies 
   }
 
   writeOut(parsedFamilies, validPairs, writeTo)
+}
+
+func addFamilies (a map[string]*dto.MetricFamily, b []*dto.MetricFamily) map[string]*dto.MetricFamily {
+  num := 1
+  for _, family := range b {
+    numstr := fmt.Sprintf("new%d", num)
+    a[numstr] = family
+    num++
+  }
+  return a
 }

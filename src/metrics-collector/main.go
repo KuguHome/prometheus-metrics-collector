@@ -13,7 +13,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/golang/protobuf/proto"
 )
 
 //struct to hold the resposne from the get function
@@ -33,8 +33,6 @@ var (
 	relabelOutFileFlagArg = kingpin.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
 	relabelDefaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
 	relabelInDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
-
-	extraMetricFamilies []*dto.MetricFamily
 )
 
 func main() {
@@ -81,6 +79,7 @@ func main() {
 	}
 
 	//if there are more elements in the array, keep going
+	bla := 0
 	for dec.More(){
 		var machine Machine
 
@@ -116,42 +115,24 @@ func main() {
 			//add a new metric that says if the device is on or on while performing the get command
 			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
 
-			//this whole thing may be a helper method
-			reg := prometheus.NewRegistry()
-			target := prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Name:      "metricscollector_target_up",
-					Help:      "1 if device is up, 0 if it is not.",
-				},
-				[]string{"machine"},
-			)
-			reg.MustRegister(target)
-					//TODO: create a new metric saying the thingy is off
-					//relabeler.something that adds metric
-					//metricscollector_target_up{machine="sz-stubbe1"} 0
-			isUp, err := target.GetMetricWithLabelValues(name)
-			if err != nil {
-				log.Fatal(err)
-			}
-
 			getResp, err := http.Get(hostStr)
 
+			//slice for extra metricsFamilies
+
+			var extraMetricFamilies []*dto.MetricFamily
 			if err == nil {
-				isUp.Set(1)
+				extraMetricFamilies = append(extraMetricFamilies, addMetricFamilyGauge("metrics_collector_target_up", "1 if target is up, 0 if target is down", 1))
 			} else {
-				isUp.Set(0)
+				extraMetricFamilies = append(extraMetricFamilies, addMetricFamilyGauge("metrics_collector_target_up", "1 if target is up, 0 if target is down", 0))
 			}
 
-			metricSlice := []*dto.Metric{&isUp}
-
-			addMetricFamily("metrics_collector_target", "information on the target device", 1, metricSlice)
-
 			//relabels and then sets OutBytes in rStruct to the byte array of the output
-			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body, extraMetricFamilies)
+			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body, extraMetricFamilies, bla)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
         	fmt.Printf("%s\n", err)
     	}
+			bla++
 		}
 	}
 
@@ -190,13 +171,18 @@ func deletePath(path string) {
     defer resp.Body.Close()
 }
 
-func addMetricFamily(name string, help string, mType dto.MetricType, metric []*dto.Metric) {
-	var family dto.MetricFamily
-
-	family.Name = &name
-	family.Help = &help
-	family.Type = &mType
-	family.Metric = metric
-
-	extraMetricFamilies = append(extraMetricFamilies, &family)
+func addMetricFamilyGauge(name string, help string, gaugeVal float64) *dto.MetricFamily {
+	return &dto.MetricFamily{
+			Name: proto.String(name),
+			Help: proto.String(help),
+			Type: dto.MetricType_GAUGE.Enum(),
+			Metric: []*dto.Metric{
+				&dto.Metric{
+					Label: []*dto.LabelPair{},
+					Gauge: &dto.Gauge{
+						Value: proto.Float64(gaugeVal),
+					},
+				},
+			},
+		}
 }
