@@ -13,7 +13,6 @@ import (
 	dto "github.com/prometheus/client_model/go"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	"github.com/golang/protobuf/proto"
 )
 
 //struct to hold the resposne from the get function
@@ -40,8 +39,6 @@ func main() {
 
 	//essentially a parser
 	dec := json.NewDecoder(bufio.NewReader(*inFileFlag))
-
-	var rStruct Relabeler
 
 	//set up structs for the parser
 	type Tunnel struct {
@@ -79,9 +76,11 @@ func main() {
 	}
 
 	//if there are more elements in the array, keep going
-	bla := 0
 	for dec.More(){
+		var rStruct Relabeler
 		var machine Machine
+
+		currFam := rStruct.newGaugeMetricFamily("metrics_collector_target_up", "1 if target is up, 0 if target is down", dto.MetricType_GAUGE.Enum())
 
 		//parse with decoder
 		if err := dec.Decode(&machine); err == io.EOF {
@@ -119,20 +118,18 @@ func main() {
 
 			//slice for extra metricsFamilies
 
-			var extraMetricFamilies []*dto.MetricFamily
 			if getResp.StatusCode == 200 {
-				extraMetricFamilies = append(extraMetricFamilies, addMetricFamilyGauge("metrics_collector_target_up", "1 if target is up, 0 if target is down", 1))
+				addGaugeMetric("path", path, 1, currFam)
 			} else {
-				extraMetricFamilies = append(extraMetricFamilies, addMetricFamilyGauge("metrics_collector_target_up", "1 if target is up, 0 if target is down", 0))
+				addGaugeMetric("path", path, 0, currFam)
 			}
 
 			//relabels and then sets OutBytes in rStruct to the byte array of the output
-			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body, extraMetricFamilies)
+			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
         	fmt.Printf("%s\n", err)
     	}
-			bla++
 		}
 	}
 
@@ -169,20 +166,4 @@ func deletePath(path string) {
     }
 
     defer resp.Body.Close()
-}
-
-func addMetricFamilyGauge(name string, help string, gaugeVal float64) *dto.MetricFamily {
-	return &dto.MetricFamily{
-			Name: proto.String(name),
-			Help: proto.String(help),
-			Type: dto.MetricType_GAUGE.Enum(),
-			Metric: []*dto.Metric{
-				&dto.Metric{
-					Label: []*dto.LabelPair{},
-					Gauge: &dto.Gauge{
-						Value: proto.Float64(gaugeVal),
-					},
-				},
-			},
-		}
 }

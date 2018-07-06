@@ -19,7 +19,7 @@ import (
   //need this stuct to allow data to be passed outside of the scope of the function without explicitly having to create onoxious parameters
   type Relabeler struct {
     OutBytes []byte
-
+    extraMetricFamilies []*dto.MetricFamily
   }
 
   //set up the flags
@@ -73,7 +73,7 @@ import (
   		"http_request_size_bytes"}
   )
 
-func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader, extraMetricFamilies []*dto.MetricFamily) {
+func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader) {
   //parses command line flags into a key=value map
 
   labelArgs = labelFlagArgs
@@ -99,15 +99,15 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
     //e.g. between when the metrics collector gets and posts and it isn't as simple as stdin and stdout
     if inStream != nil {
       buf := new(bytes.Buffer)
-      parseAndRebuild(inStream, buf, extraMetricFamilies)
+      parseAndRebuild(inStream, buf, r.extraMetricFamilies)
       r.OutBytes = buf.Bytes()
     } else {
-      parseAndRebuild(os.Stdin, writer, extraMetricFamilies)
+      parseAndRebuild(os.Stdin, writer, r.extraMetricFamilies)
     }
   } else {
     if *inFileArg != nil && strings.HasSuffix((*inFileArg).Name(), ".prom") {
       reader := bufio.NewReader(*inFileArg)
-      parseAndRebuild(reader, writer, extraMetricFamilies)
+      parseAndRebuild(reader, writer, r.extraMetricFamilies)
     }
     //directory with .prom files
     if *inDirArg != "" {
@@ -121,7 +121,7 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
           if err != nil {
               log.Fatal(err)
           }
-          parseAndRebuild(reader, writer, extraMetricFamilies)
+          parseAndRebuild(reader, writer, r.extraMetricFamilies)
         }
       }
     }
@@ -186,4 +186,30 @@ func addFamilies (a map[string]*dto.MetricFamily, b []*dto.MetricFamily) map[str
     num++
   }
   return a
+}
+
+func (r *Relabeler) newGaugeMetricFamily(name string, help string, famType *dto.MetricType) *dto.MetricFamily {
+  metricFamily := &dto.MetricFamily{
+    Name: &name,
+    Help: &help,
+    Type: dto.MetricType_GAUGE.Enum(),
+    Metric: []*dto.Metric{},
+  }
+  r.extraMetricFamilies = append(r.extraMetricFamilies, metricFamily)
+  return metricFamily
+}
+
+func addGaugeMetric(l string, v string, mval float64, family *dto.MetricFamily) {
+  metric := &dto.Metric{
+    Label: []*dto.LabelPair{
+      &dto.LabelPair{
+      Name:  proto.String(l),
+      Value: proto.String(v),
+    },
+  },
+    Gauge: &dto.Gauge{
+      Value: proto.Float64(mval),
+    },
+  }
+  family.Metric = append(family.Metric, metric)
 }
