@@ -22,6 +22,12 @@ import (
     extraMetricFamilies []*dto.MetricFamily
   }
 
+  type LabelValueFloat struct {
+  	Label string
+  	Value string
+  	Float float64
+  }
+
   //set up the flags
   var (
     //so fields are immediately available for helper methods
@@ -188,7 +194,8 @@ func addFamilies (a map[string]*dto.MetricFamily, b []*dto.MetricFamily) map[str
   return a
 }
 
-func (r *Relabeler) newGaugeMetricFamily(name string, help string, famType *dto.MetricType) *dto.MetricFamily {
+//creates a new gauge metric family
+func (r *Relabeler) newGaugeMetricFamily(name string, help string) *dto.MetricFamily {
   metricFamily := &dto.MetricFamily{
     Name: &name,
     Help: &help,
@@ -199,17 +206,20 @@ func (r *Relabeler) newGaugeMetricFamily(name string, help string, famType *dto.
   return metricFamily
 }
 
-func addGaugeMetric(l string, v string, mval float64, family *dto.MetricFamily) {
-  metric := &dto.Metric{
-    Label: []*dto.LabelPair{
-      &dto.LabelPair{
-      Name:  proto.String(l),
-      Value: proto.String(v),
+//add a new metric to the metric family pointed to by family
+func addGaugeMetrics(family *dto.MetricFamily, labelvaluefloat ...LabelValueFloat) {
+  for _, lvf := range labelvaluefloat{
+    metric := &dto.Metric{
+      Label: []*dto.LabelPair{
+        &dto.LabelPair{
+        Name:  proto.String(lvf.Label),
+        Value: proto.String(lvf.Value),
+      },
     },
-  },
-    Gauge: &dto.Gauge{
-      Value: proto.Float64(mval),
-    },
+      Gauge: &dto.Gauge{
+        Value: proto.Float64(lvf.Float),
+      },
+    }
+    family.Metric = append(family.Metric, metric)
   }
-  family.Metric = append(family.Metric, metric)
 }

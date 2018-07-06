@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"bytes"
 
-	dto "github.com/prometheus/client_model/go"
-
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -33,6 +31,8 @@ var (
 	relabelDefaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
 	relabelInDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
 )
+
+//struct that holds a label, its associated value, and a float value. Used for adding metrics
 
 func main() {
 	kingpin.Parse()
@@ -80,7 +80,7 @@ func main() {
 		var rStruct Relabeler
 		var machine Machine
 
-		currFam := rStruct.newGaugeMetricFamily("metrics_collector_target_up", "1 if target is up, 0 if target is down", dto.MetricType_GAUGE.Enum())
+		currFam := rStruct.newGaugeMetricFamily("metrics_collector_target_up", "1 if target is up, 0 if target is down")
 
 		//parse with decoder
 		if err := dec.Decode(&machine); err == io.EOF {
@@ -118,10 +118,18 @@ func main() {
 
 			//slice for extra metricsFamilies
 
-			if getResp.StatusCode == 200 {
-				addGaugeMetric("path", path, 1, currFam)
+			if err != nil || getResp.StatusCode == 404 {
+				addGaugeMetrics(currFam, LabelValueFloat{
+					Label: "path",
+					Value: path,
+					Float: 0,
+					})
 			} else {
-				addGaugeMetric("path", path, 0, currFam)
+				addGaugeMetrics(currFam, LabelValueFloat{
+					Label: "path",
+					Value: path,
+					Float: 1,
+					})
 			}
 
 			//relabels and then sets OutBytes in rStruct to the byte array of the output
