@@ -16,12 +16,13 @@ import (
   "github.com/golang/protobuf/proto"
   )
 
-  //need this stuct to allow data to be passed outside of the scope of the function without explicitly having to create onoxious parameters
+  //need this stuct to allow data to be passed outside of the scope of the function without explicitly having to create obnoxious parameters
   type Relabeler struct {
     OutBytes []byte
     extraMetricFamilies []*dto.MetricFamily
   }
 
+  //struct to hold a label, value, and float64 so that they can all be grouped under one variadic parameter in addGaugeMetrics
   type LabelValueFloat struct {
   	Label string
   	Value string
@@ -89,6 +90,7 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
   defaultDrop = defaultDropFlag
   inDirArg = inDirFlagArg
 
+  //assign writer
   var writer io.Writer
   if *outFileArg != "" {
     var err error
@@ -104,6 +106,7 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
     //case that this needs to take in a stream of bytes and then capture the bytes to use as input for something else
     //e.g. between when the metrics collector gets and posts and it isn't as simple as stdin and stdout
     if inStream != nil {
+      //captures bytes that would otherwise just go to Stdout and into oblivion
       buf := new(bytes.Buffer)
       parseAndRebuild(inStream, buf, r.extraMetricFamilies)
       r.OutBytes = buf.Bytes()
@@ -184,8 +187,10 @@ func parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies 
   writeOut(parsedFamilies, validPairs, writeTo)
 }
 
+//adds the metric family in with the string for parsing. i still don't know why it needs a string-metricfamily map
 func addFamilies (a map[string]*dto.MetricFamily, b []*dto.MetricFamily) map[string]*dto.MetricFamily {
   num := 1
+  //change the key with every additional metric family so that it doesn't just overwrite
   for _, family := range b {
     numstr := fmt.Sprintf("new%d", num)
     a[numstr] = family
@@ -194,7 +199,7 @@ func addFamilies (a map[string]*dto.MetricFamily, b []*dto.MetricFamily) map[str
   return a
 }
 
-//creates a new gauge metric family
+//creates a new gauge metric family, assigned to the respective field in the target struct
 func (r *Relabeler) newGaugeMetricFamily(name string, help string) *dto.MetricFamily {
   metricFamily := &dto.MetricFamily{
     Name: &name,
@@ -206,7 +211,7 @@ func (r *Relabeler) newGaugeMetricFamily(name string, help string) *dto.MetricFa
   return metricFamily
 }
 
-//add a new metric to the metric family pointed to by family
+//add a new metric to the metric family pointed to by family, with the label, value, and floats desired
 func addGaugeMetrics(family *dto.MetricFamily, labelvaluefloat ...LabelValueFloat) {
   for _, lvf := range labelvaluefloat{
     metric := &dto.Metric{

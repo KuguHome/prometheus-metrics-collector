@@ -13,8 +13,6 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-//struct to hold the resposne from the get function
-
 var (
 	inFileFlag = kingpin.Flag("json", "Read in a .json file.").Required().PlaceHolder("file_name").File()
 	deleteOldFlag = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool()
@@ -80,6 +78,7 @@ func main() {
 		var rStruct Relabeler
 		var machine Machine
 
+		//creating a new metric family for the device
 		currFam := rStruct.newGaugeMetricFamily("metrics_collector_target_up", "1 if target is up, 0 if target is down")
 
 		//parse with decoder
@@ -116,8 +115,6 @@ func main() {
 
 			getResp, err := http.Get(hostStr)
 
-			//slice for extra metricsFamilies
-
 			if err != nil || getResp.StatusCode == 404 {
 				addGaugeMetrics(currFam, LabelValueFloat{
 					Label: "path",
@@ -148,8 +145,7 @@ func main() {
 	}
 }
 
-var strRegex string
-
+//parse key=value pair
 func kvParse(str string) (string, string, error) {
 	parts := regexp.MustCompile("=").Split(str, 2)
 	if len(parts) != 2 {
@@ -158,6 +154,7 @@ func kvParse(str string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
+//delete the old scraped stuff in the event of a server cut
 func deletePath(path string) {
     client := &http.Client{}
 
