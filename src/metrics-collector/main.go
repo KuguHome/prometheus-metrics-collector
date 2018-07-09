@@ -60,7 +60,7 @@ func main() {
 	// ignore open bracket
 	_, err := dec.Token()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error getting first token: ", err)
 	}
 
 	//set up push path without machine/name
@@ -68,10 +68,12 @@ func main() {
 	for _, elem := range *pushLabelArgs {
 		key, value, err := kvParse(elem)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		pushPathStr = fmt.Sprintf("%s/%s/%s", pushPathStr, key, value)
 	}
+
+	log.Println("\nStarting collection from all devices\n")
 
 	//if there are more elements in the array, keep going
 	for dec.More(){
@@ -105,6 +107,8 @@ func main() {
 		}
 		port := machine.Master.Tunnels[httpIdx].Port
 
+		log.Printf("Starting collection from %s...\n", name)
+
 		if *deleteOldFlag {
 			deletePath(fullPushPathStr)
 		}
@@ -113,29 +117,46 @@ func main() {
 			//add a new metric that says if the device is on or on while performing the get command
 			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
 
+			log.Printf("Attempting GET from %s\n", hostStr)
 			getResp, err := http.Get(hostStr)
 
+			//404 returns a nil error
 			if err != nil || getResp.StatusCode == 404 {
+				if err != nil {
+					log.Printf("Failure: %s. Continuing...\n", err)
+				} else {
+					log.Print("Failure: 404 Not Found. Continuing...\n")
+				}
+				rStruct.setGetSuccess(false)
 				addGaugeMetrics(currFam, LabelValueFloat{
 					Label: "path",
 					Value: path,
 					Float: 0,
-					})
+				})
+				rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
 			} else {
+				log.Println("Success")
+				rStruct.setGetSuccess(true)
 				addGaugeMetrics(currFam, LabelValueFloat{
 					Label: "path",
 					Value: path,
 					Float: 1,
-					})
+				})
+				//relabels and then sets OutBytes in rStruct to the byte array of the output
+				log.Println("Relabeling metrics...")
+				rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
+				log.Println("Relabeling complete")
 			}
 
-			//relabels and then sets OutBytes in rStruct to the byte array of the output
-			rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
+			log.Printf("Attempting POST to %s\n", fullPushPathStr)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
-        	fmt.Printf("%s\n", err)
-    	}
+        log.Printf("Failure: %s\n", err)
+    	} else{
+				log.Println("Success")
+			}
 		}
+		log.Printf("Collection from %s complete\n\n", name)
 	}
 
 	// ignore closing bracket
@@ -143,32 +164,37 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("Collection from all devices complete")
 }
 
 //parse key=value pair
 func kvParse(str string) (string, string, error) {
 	parts := regexp.MustCompile("=").Split(str, 2)
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("expected KEY=VALUE got '%s'", str)
+		return "", "", fmt.Errorf("function kvParse() error: Expected KEY=VALUE got %s", str)
 	}
 	return parts[0], parts[1], nil
 }
 
 //delete the old scraped stuff in the event of a server cut
 func deletePath(path string) {
-    client := &http.Client{}
+	log.Printf("Deleting old metrics from %s\n", path)
+  client := &http.Client{}
 
     // Create request
-    req, err := http.NewRequest("DELETE", path, nil)
-    if err != nil {
-        log.Fatal(err)
-    }
+  req, err := http.NewRequest("DELETE", path, nil)
+  if err != nil {
+      log.Printf("Failure: %s. Continuing...\n", err)
+  }
 
-    // Fetch Request
-    resp, err := client.Do(req)
-    if err != nil {
-        log.Fatal(err)
-    }
+  // Fetch Request
+  resp, err := client.Do(req)
+  if err != nil {
+      log.Printf("Failure: %s. Continuing\n", err)
+  }
 
-    defer resp.Body.Close()
+	log.Println("Success")
+
+  defer resp.Body.Close()
 }

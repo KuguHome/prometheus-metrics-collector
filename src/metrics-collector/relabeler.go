@@ -20,6 +20,7 @@ import (
   type Relabeler struct {
     OutBytes []byte
     extraMetricFamilies []*dto.MetricFamily
+    GetSuccess bool
   }
 
   //struct to hold a label, value, and float64 so that they can all be grouped under one variadic parameter in addGaugeMetrics
@@ -96,7 +97,7 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
     var err error
     writer, err = os.Create(*outFileArg)
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("Output file error: ", err)
     }
   } else {
     writer = os.Stdout
@@ -108,29 +109,35 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
     if inStream != nil {
       //captures bytes that would otherwise just go to Stdout and into oblivion
       buf := new(bytes.Buffer)
-      parseAndRebuild(inStream, buf, r.extraMetricFamilies)
+      r.parseAndRebuild(inStream, buf, r.extraMetricFamilies)
       r.OutBytes = buf.Bytes()
     } else {
-      parseAndRebuild(os.Stdin, writer, r.extraMetricFamilies)
+      r.parseAndRebuild(os.Stdin, writer, r.extraMetricFamilies)
     }
   } else {
     if *inFileArg != nil && strings.HasSuffix((*inFileArg).Name(), ".prom") {
       reader := bufio.NewReader(*inFileArg)
-      parseAndRebuild(reader, writer, r.extraMetricFamilies)
+      r.parseAndRebuild(reader, writer, r.extraMetricFamilies)
+    } else {
+      log.Printf("%s is not a .prom file\n", *inFileFlagArg)
     }
     //directory with .prom files
     if *inDirArg != "" {
       filesInfo, err := ioutil.ReadDir(*inDirArg)
       if err != nil {
-          log.Fatal(err)
-      }
-      for _, info := range filesInfo {
-        if strings.HasSuffix(info.Name(), ".prom") {
-          reader, err := os.Open("" + *inDirArg + "/" + info.Name())
-          if err != nil {
-              log.Fatal(err)
+          log.Printf("Error with input directory: %s\n", err)
+      } else{
+        for _, info := range filesInfo {
+          openFile := fmt.Sprintf("%s/%s", *inDirArg, info.Name())
+          if strings.HasSuffix(info.Name(), ".prom") {
+            reader, err := os.Open(openFile)
+            if err != nil {
+              log.Printf("Error opening %s: %s", openFile, err)
+            }
+            r.parseAndRebuild(reader, writer, r.extraMetricFamilies)
+          } else {
+            log.Printf("%s is not a .prom file\n", openFile)
           }
-          parseAndRebuild(reader, writer, r.extraMetricFamilies)
         }
       }
     }
@@ -160,14 +167,18 @@ func pairArgsToSlice() []*dto.LabelPair {
 }
 
 //parses a stream coming in from readFrom, adds and drops metrics, rebuilds it, and writes it to writeTo
-func parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies []*dto.MetricFamily) {
+func (r *Relabeler) parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extraMetricFamilies []*dto.MetricFamily) {
   //creates TextParser and parses text into metrics
   var parser expfmt.TextParser
 
   parsedFamilies, err := parser.TextToMetricFamilies(readFrom)
-  if err != nil {
-			//read path doesn't exist
-		}
+
+  if r.GetSuccess {
+    //only print this message if the get was successful to begin with, otherwise the message is meaningless and will be confusing
+    if err != nil {
+  			log.Printf("function parseAndRebuild() error: %s\n", err)
+  		}
+  }
 
   //for each device, add extra metrics
   parsedFamilies = addFamilies(parsedFamilies, extraMetricFamilies)
@@ -227,4 +238,8 @@ func addGaugeMetrics(family *dto.MetricFamily, labelvaluefloat ...LabelValueFloa
     }
     family.Metric = append(family.Metric, metric)
   }
+}
+
+func (r *Relabeler) setGetSuccess(in bool) {
+  r.GetSuccess = in
 }

@@ -7,19 +7,53 @@ This is a program currently installed on our central component server (zentralko
 2. ```GOPATH="$GOPATH:`pwd`" go install metrics-collector```
 
 ### Details
-This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above.
+This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above. 
 
 ### Command Line
+
+##Flags
 `--json <file_name>`
 Read in from a .json file \<file_name\>
 
 `--delete-old`
 Delete old, repeated scrapes in the event of a server cut
 
+`--machine-label <machine_label>`
+Specify the machine label
+
+`--push-url <url>`
+specify the paths to read from (include a leading forward slash)
+
+`-a, --add-label <label>=<value>`
+The label-value pair \<label\>=\<value\> is added to the incoming text in the correct format. Can be called an arbitrary number of times.
+
+`-d, --drop-metric <some_metric>`
+The metric given by some_metric is dropped. Can be called an arbitrary number of times.
+
+`--drop-default`
+Drop default metrics
+
+`--in <file_name>`
+Read in a .prom file \<file_name\>
+
+`--out <file_name>`
+Write out to a file \<file_name\>
+
+`in-dir <dir_name>`
+Read in a directory \<dir_name\> and run the program on each .prom file in the directory. Does not go into sub-directories.
+
+##Commands
+`help [command...]`
+Show help
+
+`push-label [<push-label-args>...]`
+Add name-value pairs to push names in the form <name>=<value>
+
+
 ### Example
 This is an example call to the program from the command line. "sz.json" is the file containing the information of all of the control units.
 ```
-./metrics-collector --delete-old --json sz.json
+./metrics-collector --json sz.json.conf push-label job=node machine_type=sz --delete-old --push-url http://localhost:9091/metrics --read-path /static/metrics/node_exporter.prom --machine-label machine --drop-default
 ```
 
 ### Development/Build Setup
