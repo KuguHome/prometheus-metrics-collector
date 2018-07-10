@@ -9,7 +9,7 @@ This is a program currently installed on our central component server (zentralko
 ### Details
 This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above.
 
-# Command Line
+## Command Line
 
 ### Flags
 `--json <file_name>`
@@ -45,7 +45,7 @@ Read in a directory \<dir_name\> and run the program on each .prom file in the d
 `--log`
 Write logs to STDERR
 
-### Commands
+###Commands
 `help [command...]`
 Show help
 
@@ -53,13 +53,13 @@ Show help
 Add name-value pairs to push names in the form <name>=<value>
 
 
-### Example
+#### Example
 This is an example call to the program from the command line. "sz.json" is the file containing the information of all of the control units.
 ```
 ./metrics-collector --json sz.json.conf push-label job=node machine_type=sz --delete-old --push-url http://localhost:9091/metrics --read-path /static/metrics/node_exporter.prom --read-path /static/metrics/openhab.prom --machine-label machine --log
 ```
 
-Terminal Output:
+**Terminal Output:**
 ```
 2018/07/10 07:45:45 Starting collection from lkuttner...
 2018/07/10 07:45:45 Deleting old metrics from http://localhost:9091/metrics/job/node/machine_type/sz/machine/lkuttner
@@ -78,7 +78,7 @@ Terminal Output:
 
 ```
 
-# Development/Build Setup
+## Development/Build Setup
 This program uses the language Golang. Go to the following website for installation instructions:
 ```
 https://golang.org/doc/install
