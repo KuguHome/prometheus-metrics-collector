@@ -5,7 +5,6 @@ import (
   "io"
   "bufio"
   "io/ioutil"
-  "log"
   "strings"
   "bytes"
   "fmt"
@@ -33,12 +32,6 @@ import (
   //set up the flags
   var (
     //so fields are immediately available for helper methods
-    labelArgs *map[string]string
-    dropArgs *[]string
-    inFileArg **os.File
-    outFileArg *string
-    defaultDrop *bool
-    inDirArg *string
 
     defaultFlags = []string{
   		"go_memstats_last_gc_time_seconds",
@@ -81,29 +74,20 @@ import (
   		"http_request_size_bytes"}
   )
 
-func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]string, inFileFlagArg **os.File, outFileFlagArg *string, defaultDropFlag *bool, inDirFlagArg *string, inStream io.Reader) {
-  //parses command line flags into a key=value map
-
-  labelArgs = labelFlagArgs
-  dropArgs = dropFlagArgs
-  inFileArg = inFileFlagArg
-  outFileArg = outFileFlagArg
-  defaultDrop = defaultDropFlag
-  inDirArg = inDirFlagArg
-
+func (r *Relabeler) relabel(inStream io.Reader) {
   //assign writer
   var writer io.Writer
-  if *outFileArg != "" {
+  if *outFileFlagArg != "" {
     var err error
-    writer, err = os.Create(*outFileArg)
+    writer, err = os.Create(*outFileFlagArg)
     if err != nil {
-        log.Fatalf("Output file error: ", err)
+        logFatalf("Output file error: ", err)
     }
   } else {
     writer = os.Stdout
   }
   //goes through all cases of possible readers
-  if (*inFileArg == nil) && (*inDirArg == "") {
+  if (*inFileFlagArg == nil) && (*inDirFlagArg == "") {
     //case that this needs to take in a stream of bytes and then capture the bytes to use as input for something else
     //e.g. between when the metrics collector gets and posts and it isn't as simple as stdin and stdout
     if inStream != nil {
@@ -115,28 +99,28 @@ func (r *Relabeler) relabel(labelFlagArgs *map[string]string, dropFlagArgs *[]st
       r.parseAndRebuild(os.Stdin, writer, r.extraMetricFamilies)
     }
   } else {
-    if *inFileArg != nil && strings.HasSuffix((*inFileArg).Name(), ".prom") {
-      reader := bufio.NewReader(*inFileArg)
+    if *inFileFlagArg != nil && strings.HasSuffix((*inFileFlagArg).Name(), ".prom") {
+      reader := bufio.NewReader(*inFileFlagArg)
       r.parseAndRebuild(reader, writer, r.extraMetricFamilies)
     } else {
-      log.Printf("%s is not a .prom file\n", *inFileFlagArg)
+      logPrintf("%s is not a .prom file\n", *inFileFlagArg)
     }
     //directory with .prom files
-    if *inDirArg != "" {
-      filesInfo, err := ioutil.ReadDir(*inDirArg)
+    if *inDirFlagArg != "" {
+      filesInfo, err := ioutil.ReadDir(*inDirFlagArg)
       if err != nil {
-          log.Printf("Error with input directory: %s\n", err)
+          logPrintf("Error with input directory: %s\n", err)
       } else{
         for _, info := range filesInfo {
-          openFile := fmt.Sprintf("%s/%s", *inDirArg, info.Name())
+          openFile := fmt.Sprintf("%s/%s", *inDirFlagArg, info.Name())
           if strings.HasSuffix(info.Name(), ".prom") {
             reader, err := os.Open(openFile)
             if err != nil {
-              log.Printf("Error opening %s: %s", openFile, err)
+              logPrintf("Error opening %s: %s", openFile, err)
             }
             r.parseAndRebuild(reader, writer, r.extraMetricFamilies)
           } else {
-            log.Printf("%s is not a .prom file\n", openFile)
+            logPrintf("%s is not a .prom file\n", openFile)
           }
         }
       }
@@ -157,7 +141,7 @@ func writeOut(families map[string]*dto.MetricFamily, labelPairs []*dto.LabelPair
 //converts key-value map into LabelPair slice
 func pairArgsToSlice() []*dto.LabelPair {
   var pairs []*dto.LabelPair
-  for key, value := range *labelArgs {
+  for key, value := range *labelFlagArgs {
         pairs = append(pairs, &dto.LabelPair{
           Name:  proto.String(key),
 				  Value: proto.String(value),
@@ -176,7 +160,7 @@ func (r *Relabeler) parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extra
   if r.GetSuccess {
     //only print this message if the get was successful to begin with, otherwise the message is meaningless and will be confusing
     if err != nil {
-  			log.Printf("function parseAndRebuild() error: %s\n", err)
+  			logPrintf("function parseAndRebuild() error: %s\n", err)
   		}
   }
 
@@ -186,12 +170,12 @@ func (r *Relabeler) parseAndRebuild(readFrom io.Reader, writeTo io.Writer, extra
   validPairs := pairArgsToSlice()
 
   //add the default drop metrics to the list of metrics to be dropped
-  if *defaultDrop {
-    *dropArgs = append(*dropArgs, defaultFlags...)
+  if *defaultDropFlag {
+    *dropFlagArgs = append(*dropFlagArgs, defaultFlags...)
   }
 
   //delete metrics requested to be dropped
-  for _, name := range *dropArgs {
+  for _, name := range *dropFlagArgs {
     delete(parsedFamilies, name)
   }
 
@@ -240,6 +224,6 @@ func addGaugeMetrics(family *dto.MetricFamily, labelvaluefloat ...LabelValueFloa
   }
 }
 
-func (r *Relabeler) setGetSuccess(in bool) {
-  r.GetSuccess = in
+func (r *Relabeler) setGetSuccess(b bool) {
+  r.GetSuccess = b
 }

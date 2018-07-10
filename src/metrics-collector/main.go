@@ -5,7 +5,6 @@ import (
 	"io"
 	"bufio"
 	"encoding/json"
-	"log"
 	"regexp"
 	"net/http"
 	"bytes"
@@ -14,6 +13,8 @@ import (
 )
 
 var (
+	logFlag = kingpin.Flag("log", "Enable logging").Bool()
+
 	inFileFlag = kingpin.Flag("json", "Read in a .json file.").Required().PlaceHolder("file_name").File()
 	deleteOldFlag = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool()
 	pushLabelCommand = kingpin.Command("push-label", "Add name-value pairs to push names in the form <name>=<value>")
@@ -22,12 +23,12 @@ var (
 	pushURLFlag = kingpin.Flag("push-url", "Specify the url to read from").Required().PlaceHolder("url").String()
 	readPathFlags = kingpin.Flag("read-path", "specify the paths to read from (include a leading forward slash)").Required().PlaceHolder("read_path").Strings()
 
-	relabelLabelFlagArgs = kingpin.Flag("add-label", "Add a label and value in the form <label>=<value>.").PlaceHolder("<label>=<value>").Short('a').StringMap()
-	relabelDropFlagArgs = kingpin.Flag("drop-metric", "Drop a metric").PlaceHolder("some_metric").Short('d').Strings()
-	relabelInFileFlagArg = kingpin.Flag("in", "Read in a file").PlaceHolder("file_name").File();
-	relabelOutFileFlagArg = kingpin.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
-	relabelDefaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
-	relabelInDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
+	labelFlagArgs = kingpin.Flag("add-label", "Add a label and value in the form <label>=<value>.").PlaceHolder("<label>=<value>").Short('a').StringMap()
+	dropFlagArgs = kingpin.Flag("drop-metric", "Drop a metric").PlaceHolder("some_metric").Short('d').Strings()
+	inFileFlagArg = kingpin.Flag("in", "Read in a file").PlaceHolder("file_name").File();
+	outFileFlagArg = kingpin.Flag("out", "Write to a File").PlaceHolder("file_name").String(); //string because has to create the file
+	defaultDropFlag = kingpin.Flag("drop-default", "Drop default metrics").Bool();
+	inDirFlagArg = kingpin.Flag("in-dir", "Read in a directory").PlaceHolder("dir_name").String();
 )
 
 //struct that holds a label, its associated value, and a float value. Used for adding metrics
@@ -60,7 +61,7 @@ func main() {
 	// ignore open bracket
 	_, err := dec.Token()
 	if err != nil {
-		log.Fatalf("Error getting first token: ", err)
+		logFatalf("Error getting first token: %s", err)
 	}
 
 	//set up push path without machine/name
@@ -68,12 +69,12 @@ func main() {
 	for _, elem := range *pushLabelArgs {
 		key, value, err := kvParse(elem)
 		if err != nil {
-			log.Println(err)
+			logPrintln(err)
 		}
 		pushPathStr = fmt.Sprintf("%s/%s/%s", pushPathStr, key, value)
 	}
 
-	log.Println("\nStarting collection from all devices\n")
+	logPrintln("Starting collection from all devices\n")
 
 	//if there are more elements in the array, keep going
 	for dec.More(){
@@ -87,7 +88,7 @@ func main() {
 		if err := dec.Decode(&machine); err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatal(err)
+			logFatal(err)
 		}
 
 		//find relevant fields for command line args
@@ -107,7 +108,7 @@ func main() {
 		}
 		port := machine.Master.Tunnels[httpIdx].Port
 
-		log.Printf("Starting collection from %s...\n", name)
+		logPrintf("Starting collection from %s...\n", name)
 
 		if *deleteOldFlag {
 			deletePath(fullPushPathStr)
@@ -117,15 +118,15 @@ func main() {
 			//add a new metric that says if the device is on or on while performing the get command
 			hostStr := fmt.Sprintf("http://%s:%s%s", host, port, path)
 
-			log.Printf("Attempting GET from %s\n", hostStr)
+			logPrintf("Attempting GET from %s\n", hostStr)
 			getResp, err := http.Get(hostStr)
 
 			//404 returns a nil error
 			if err != nil || getResp.StatusCode == 404 {
 				if err != nil {
-					log.Printf("Failure: %s. Continuing...\n", err)
+					logPrintf("Failure: %s. Continuing...\n", err)
 				} else {
-					log.Print("Failure: 404 Not Found. Continuing...\n")
+					logPrint("Failure: 404 Not Found. Continuing...\n")
 				}
 				rStruct.setGetSuccess(false)
 				addGaugeMetrics(currFam, LabelValueFloat{
@@ -133,9 +134,9 @@ func main() {
 					Value: path,
 					Float: 0,
 				})
-				rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
+				rStruct.relabel(getResp.Body)
 			} else {
-				log.Println("Success")
+				logPrintln("Success")
 				rStruct.setGetSuccess(true)
 				addGaugeMetrics(currFam, LabelValueFloat{
 					Label: "path",
@@ -143,29 +144,29 @@ func main() {
 					Float: 1,
 				})
 				//relabels and then sets OutBytes in rStruct to the byte array of the output
-				log.Println("Relabeling metrics...")
-				rStruct.relabel(relabelLabelFlagArgs, relabelDropFlagArgs, relabelInFileFlagArg, relabelOutFileFlagArg, relabelDefaultDropFlag, relabelInDirFlagArg, getResp.Body)
-				log.Println("Relabeling complete")
+				logPrintln("Relabeling metrics...")
+				rStruct.relabel(getResp.Body)
+				logPrintln("Relabeling complete")
 			}
 
-			log.Printf("Attempting POST to %s\n", fullPushPathStr)
+			logPrintf("Attempting POST to %s\n", fullPushPathStr)
 			_, err = http.Post(fullPushPathStr, "application/octet-stream", bytes.NewReader(rStruct.OutBytes))
 			if err != nil {
-        log.Printf("Failure: %s\n", err)
+        logPrintf("Failure: %s\n", err)
     	} else{
-				log.Println("Success")
+				logPrintln("Success")
 			}
 		}
-		log.Printf("Collection from %s complete\n\n", name)
+		logPrint("Collection from %s complete\n\n", name)
 	}
 
 	// ignore closing bracket
 	_, err = dec.Token()
 	if err != nil {
-		log.Fatal(err)
+		logFatal(err)
 	}
 
-	log.Printf("Collection from all devices complete")
+	logPrintf("Collection from all devices complete")
 }
 
 //parse key=value pair
@@ -179,22 +180,22 @@ func kvParse(str string) (string, string, error) {
 
 //delete the old scraped stuff in the event of a server cut
 func deletePath(path string) {
-	log.Printf("Deleting old metrics from %s\n", path)
+	logPrintf("Deleting old metrics from %s\n", path)
   client := &http.Client{}
 
     // Create request
   req, err := http.NewRequest("DELETE", path, nil)
   if err != nil {
-      log.Printf("Failure: %s. Continuing...\n", err)
+      logPrintf("Failure: %s. Continuing...\n", err)
   }
 
   // Fetch Request
   resp, err := client.Do(req)
   if err != nil {
-      log.Printf("Failure: %s. Continuing\n", err)
+      logPrintf("Failure: %s. Continuing\n", err)
   }
 
-	log.Println("Success")
+	logPrintln("Success")
 
   defer resp.Body.Close()
 }
