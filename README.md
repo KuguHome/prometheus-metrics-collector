@@ -1,19 +1,35 @@
-# dayreport-send
-This is a program currently installed on our central component server (zentralkomponente, zk). It is running automatically once a day. It logs into the control units (steuerzentrale, SZ, RaspberryPI), downloads the tagesbericht (daily status reports) pdf files (see https://gitlab.kugu-home.com/projekte/metrics-collector/blob/master/examples/tagesbericht_2018-06-18.pdf) and sends them out to e.g. Leo & Christopher.
+# metrics-collector
+This is a program currently installed on our central component server (zentralkomponente, zk). It is running automatically every minute. It logs into each control unit through an HTTP tunnel, collects all of the metrics on the machine, relabels them, and pushes them to the Prometheus Pushgateway.
 
-## how to compile
+## How to Compile
 
-1. ```GOPATH="$GOPATH:`pwd`" go get -d ...```
-2. ```GOPATH="$GOPATH:`pwd`" go install metrics-collector```
+To compile this program, cd into src/metrics-collector and run the following:
+```
+go build
+```
+If a binary is needed in another environment, lead the command with `env`, followed by `GOOS=<target_OS>` and `<GOARCH=target_architecture>`, and then finally with `go build`. For example, the following compiles for a Linux operating system with the AMD64 architecture:
+```
+env GOOS=linux GOARCH=amd64 go build
+```
+
+This will make an executable, ‘metrics-collector’. After, the binary can be copied to any desired place. The following copies the binary to the system path, which can be done by copying to /usr/local/bin:
+```
+cp metrics-collector /usr/local/bin
+```
+
 
 ### Details
-This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above.
+This program reads in a json file containing a list of control units and their information. For each control unit, the program logs into the control unit through an HTTP tunnel. Upon connecting, the program deletes all old metrics in the event of a server cut. Then, for each read path requested, it calls a separate program component, the relabeler, which add and drops metrics as requested. The relabeled metrics are then pushed to the Prometheus Pushgateway. Additionally, for each read path, a metric is added under the metric family metrics_collector_target_up that takes the value 1 if the get request succeeded and 0 if the get request failed.
+
+The relabeler itself is capable of reading in from STDIN, files, and directories. The HTTP get requests are sent to the relabeler as a byte stream. The relabeler can add and drop labels, drop a set of 38 metrics, and write to a reqested file, or STDOUT if none is specified. For our metrics-collector, the relabeled text is written to STDOUT, captured as a byte array, and then pushed to the Prometheus Pushgateway through HTTP.
+
+This program also has the option of printing logging information to the terminal for troubleshooting.
 
 ## Command Line
 
 ### Flags
 `--json <file_name>`
-Read in from a .json file \<file_name\>
+Read in from a json file \<file_name\>
 
 `--delete-old`
 Delete old, repeated scrapes in the event of a server cut
@@ -54,7 +70,7 @@ Add name-value pairs to push names in the form <name>=<value>
 
 
 #### Example
-This is an example call to the program from the command line. "sz.json" is the file containing the information of all of the control units.
+This is an example call to the program from the command line. "sz.json.conf" is the file containing the information of all of the control units.
 ```
 ./metrics-collector --json sz.json.conf push-label job=node machine_type=sz --delete-old --push-url http://localhost:9091/metrics --read-path /static/metrics/node_exporter.prom --read-path /static/metrics/openhab.prom --machine-label machine --log
 ```
@@ -89,17 +105,7 @@ Additionally, dep is used for dependency handling. Go to the following website f
 https://golang.github.io/dep/docs/installation.html
 ```
 
-### Making it Runnable From the Command Line
-To compile this program, cd into src/metrics-collector and run the following:
+With dep installed, cd into metrics-collector and perform:
 ```
-go build
-```
-If a binary is needed in another environment, lead the command with `env`, followed by `GOOS=<target_OS>` and `<GOARCH=target_architecture>`, and then finally with `go build`. For example, the following compiles for a Linux operating system with the AMD64 architecture:
-```
-env GOOS=linux GOARCH=amd64 go build
-```
-
-This will make an executable, ‘metrics-collector’. After, the binary can be copied to any desired place. The following copies the binary to the system path, which can be done by copying to /usr/local/bin:
-```
-cp metrics-collector /usr/local/bin
+dep ensure
 ```
