@@ -90,12 +90,16 @@ https://golang.github.io/dep/docs/installation.html
 ```
 
 ### Making it Runnable From the Command Line
-Compile the program with the following
+To compile this program, cd into src/metrics-collector and run the following:
 ```
-go build -o metrics-collector main.go
+go build
+```
+If a binary is needed in another environment, lead the command with `env`, followed by `GOOS=\<target_OS\>` and `\<GOARCH=target_architecture\>`, and then finally with go build. For example, the following compiles for a Linux operating system with the AMD64 architecture:
+```
+env GOOS=linux GOARCH=amd64 go build
 ```
 
-This will make an executable, ‘metrics-collector’. After, the program can be copied to the system path, which can be done by copying to /usr/local/bin:
+This will make an executable, ‘metrics-collector’. After, the binary can be copied to any desired place. The following copies the binary to the system path, which can be done by copying to /usr/local/bin:
 ```
 cp metrics-collector /usr/local/bin
 ```
