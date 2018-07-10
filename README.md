@@ -11,7 +11,7 @@ This program reads in a .json file containing a list of control units and their 
 
 # Command Line
 
-###Flags
+### Flags
 `--json <file_name>`
 Read in from a .json file \<file_name\>
 
@@ -45,7 +45,7 @@ Read in a directory \<dir_name\> and run the program on each .prom file in the d
 `--log`
 Write logs to STDERR
 
-###Commands
+### Commands
 `help [command...]`
 Show help
 
