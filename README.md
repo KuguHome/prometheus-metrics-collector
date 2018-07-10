@@ -45,7 +45,7 @@ Read in a directory \<dir_name\> and run the program on each .prom file in the d
 `--log`
 Write logs to STDERR
 
-###Commands
+### Commands
 `help [command...]`
 Show help
 
