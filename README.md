@@ -9,9 +9,9 @@ This is a program currently installed on our central component server (zentralko
 ### Details
 This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above.
 
-### Command Line
+# Command Line
 
-##Flags
+###Flags
 `--json <file_name>`
 Read in from a .json file \<file_name\>
 
@@ -45,7 +45,7 @@ Read in a directory \<dir_name\> and run the program on each .prom file in the d
 `--log`
 Write logs to STDERR
 
-##Commands
+###Commands
 `help [command...]`
 Show help
 
@@ -78,7 +78,7 @@ Output:
 
 ```
 
-### Development/Build Setup
+# Development/Build Setup
 This program uses the language Golang. Go to the following website for installation instructions:
 ```
 https://golang.org/doc/install
