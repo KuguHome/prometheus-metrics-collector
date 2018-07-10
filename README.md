@@ -7,7 +7,7 @@ To compile this program, cd into src/metrics-collector and run the following:
 ```
 go build
 ```
-If a binary is needed in another environment, lead the command with `env`, followed by `GOOS=<target_OS>` and `<GOARCH=target_architecture>`, and then finally with `go build`. For example, the following compiles for a Linux operating system with the AMD64 architecture:
+If a binary is needed in another environment, lead the command with `env`, followed by `GOOS=<target_OS>` and `GOARCH=<target_architecture>`, and then finally with `go build`. For example, the following compiles for a Linux operating system with the AMD64 architecture:
 ```
 env GOOS=linux GOARCH=amd64 go build
 ```
