@@ -11,8 +11,7 @@ If a binary is needed in another environment, lead the command with `env`, follo
 ```
 env GOOS=linux GOARCH=amd64 go build
 ```
-
-This will make an executable, ‘metrics-collector’. After, the binary can be copied to any desired place. The following copies the binary to the system path, which can be done by copying to /usr/local/bin:
+This will make an executable, `metrics-collector`. After, the binary can be copied to any desired place. The following copies the binary to the system path, which can be done by copying to /usr/local/bin:
 ```
 cp metrics-collector /usr/local/bin
 ```
