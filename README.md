@@ -109,3 +109,4 @@ With dep installed, cd into metrics-collector and perform:
 ```
 dep ensure
 ```
+This will install dependencies that this program requires.
