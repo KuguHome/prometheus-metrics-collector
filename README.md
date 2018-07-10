@@ -7,7 +7,7 @@ This is a program currently installed on our central component server (zentralko
 2. ```GOPATH="$GOPATH:`pwd`" go install metrics-collector```
 
 ### Details
-This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above. 
+This program reads in a .json file containing a list of control units and their information. It parses the file, logs into each machine through an HTTP tunnel, and does as described above.
 
 ### Command Line
 
@@ -39,8 +39,11 @@ Read in a .prom file \<file_name\>
 `--out <file_name>`
 Write out to a file \<file_name\>
 
-`in-dir <dir_name>`
+`--in-dir <dir_name>`
 Read in a directory \<dir_name\> and run the program on each .prom file in the directory. Does not go into sub-directories.
+
+`--log`
+Write logs to STDERR
 
 ##Commands
 `help [command...]`
@@ -53,7 +56,26 @@ Add name-value pairs to push names in the form <name>=<value>
 ### Example
 This is an example call to the program from the command line. "sz.json" is the file containing the information of all of the control units.
 ```
-./metrics-collector --json sz.json.conf push-label job=node machine_type=sz --delete-old --push-url http://localhost:9091/metrics --read-path /static/metrics/node_exporter.prom --machine-label machine --drop-default
+./metrics-collector --json sz.json.conf push-label job=node machine_type=sz --delete-old --push-url http://localhost:9091/metrics --read-path /static/metrics/node_exporter.prom --read-path /static/metrics/openhab.prom --machine-label machine --log
+```
+
+Output:
+```
+2018/07/10 07:45:45 Starting collection from lkuttner...
+2018/07/10 07:45:45 Deleting old metrics from http://localhost:9091/metrics/job/node/machine_type/sz/machine/lkuttner
+2018/07/10 07:45:45 Success
+2018/07/10 07:45:45 Attempting GET from http://localhost:2020/static/metrics/node_exporter.prom
+2018/07/10 07:45:45 Success
+2018/07/10 07:45:45 Relabeling metrics...
+2018/07/10 07:45:45 Relabeling complete
+2018/07/10 07:45:45 Attempting POST to http://localhost:9091/metrics/job/node/machine_type/sz/machine/lkuttner
+2018/07/10 07:45:45 Success
+2018/07/10 07:45:45 Attempting GET from http://localhost:2020/static/metrics/openhab.prom
+2018/07/10 07:45:45 Failure: 404 Not Found. Continuing...
+2018/07/10 07:45:45 Attempting POST to http://localhost:9091/metrics/job/node/machine_type/sz/machine/lkuttner
+2018/07/10 07:45:45 Success
+2018/07/10 07:45:45 Collection from lkuttner complete
+
 ```
 
 ### Development/Build Setup

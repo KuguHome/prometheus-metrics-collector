@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	logFlag = kingpin.Flag("log", "Enable logging").Bool()
+	logFlag = kingpin.Flag("log", "Write logs to STDERR").Bool()
 
 	inFileFlag = kingpin.Flag("json", "Read in a .json file.").Required().PlaceHolder("file_name").File()
 	deleteOldFlag = kingpin.Flag("delete-old", "Delete old, repeated scrapes in the event of a server cut").Bool()
@@ -157,7 +157,7 @@ func main() {
 				logPrintln("Success")
 			}
 		}
-		logPrint("Collection from %s complete\n\n", name)
+		logPrintf("Collection from %s complete\n\n", name)
 	}
 
 	// ignore closing bracket
