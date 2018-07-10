@@ -24,6 +24,19 @@
 #   go-tests = true
 #   unused-packages = true
 
+
+[[constraint]]
+  name = "github.com/golang/protobuf"
+  version = "1.1.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/prometheus/client_model"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/prometheus/common"
+
 [[constraint]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   version = "2.2.6"
