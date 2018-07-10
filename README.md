@@ -59,7 +59,7 @@ This is an example call to the program from the command line. "sz.json" is the f
 ./metrics-collector --json sz.json.conf push-label job=node machine_type=sz --delete-old --push-url http://localhost:9091/metrics --read-path /static/metrics/node_exporter.prom --read-path /static/metrics/openhab.prom --machine-label machine --log
 ```
 
-Output:
+Terminal Output:
 ```
 2018/07/10 07:45:45 Starting collection from lkuttner...
 2018/07/10 07:45:45 Deleting old metrics from http://localhost:9091/metrics/job/node/machine_type/sz/machine/lkuttner
