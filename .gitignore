@@ -1,4 +1,4 @@
-/src/github.com
-/pkg
-/bin
+/pkg/
+/bin/
 /vendor/
+src/metrics-collector/metrics-collector
