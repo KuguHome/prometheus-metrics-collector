@@ -134,7 +134,6 @@ func main() {
 					Value: path,
 					Float: 0,
 				})
-				rStruct.relabel(getResp.Body)
 			} else {
 				logPrintln("Success")
 				rStruct.setGetSuccess(true)
