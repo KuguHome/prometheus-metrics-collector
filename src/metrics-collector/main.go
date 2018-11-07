@@ -51,7 +51,7 @@ func main() {
 		Tunnels []Tunnel `json:"tunnels"`
 		Description string `json:"description"`
 		Name string `json:"name"`
-		ID int `json:"id"`
+		ID string `json:"id"`
 	}
 
 	type Machine struct {
